@@ -34,7 +34,7 @@ class User(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
-    assignments = relationship("JobAssignment", back_populates="technician")
+    assignments = relationship("JobAssignment", back_populates="technician", foreign_keys="JobAssignment.technician_id")
     created_jobs = relationship("Job", back_populates="created_by")
     events = relationship("JobEvent", back_populates="actor")
     updates = relationship("JobUpdate", back_populates="author")

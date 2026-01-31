@@ -14,5 +14,11 @@ class Settings(BaseSettings):
     # Local dev DB points to our Docker Postgres container (port 5432 on localhost).
     DATABASE_URL: str = "postgresql+psycopg://fsa:fsa_password@localhost:5432/fsa_db"
 
+    # JWT configuration
+    SECRET_KEY: str = "CHANGE_ME"
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+
 
 settings = Settings()
+

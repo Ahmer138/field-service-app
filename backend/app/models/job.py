@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from sqlalchemy import DateTime, Enum as SQLEnum, String, Text, func
+from sqlalchemy import DateTime, Enum as SQLEnum, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -49,7 +49,8 @@ class Job(Base):
         SQLEnum(JobPriority, name="job_priority"), nullable=False, default=JobPriority.MEDIUM
     )
 
-    created_by_id: Mapped[int] = mapped_column(nullable=False)
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+
 
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
