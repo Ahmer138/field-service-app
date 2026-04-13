@@ -85,6 +85,47 @@ def test_manager_can_create_user_job_and_assignment(client, session_factory):
     assert assignment_response.json()["technician_id"] == technician_id
 
 
+def test_create_user_rejects_duplicate_technician_code(client, session_factory):
+    create_user(
+        session_factory,
+        email="manager-dup@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Duplicate",
+    )
+    create_user(
+        session_factory,
+        email="existing-tech@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Existing Technician",
+    )
+
+    with session_factory() as db:
+        existing_technician = db.query(User).filter(User.email == "existing-tech@example.com").first()
+        existing_technician.technician_code = "TECH-EXISTING"
+        db.add(existing_technician)
+        db.commit()
+
+    manager_headers = login(client, email="manager-dup@example.com", password="secret123")
+
+    response = client.post(
+        "/users",
+        headers=manager_headers,
+        json={
+            "email": "new-tech@example.com",
+            "password": "secret123",
+            "role": "technician",
+            "technician_code": "TECH-EXISTING",
+            "full_name": "New Technician",
+            "is_active": True,
+        },
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Technician code already exists"
+
+
 def test_assigned_technician_can_complete_job_workflow(client, session_factory):
     manager = create_user(
         session_factory,

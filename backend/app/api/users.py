@@ -24,6 +24,16 @@ def create_user(
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already exists")
 
+    if payload.technician_code:
+        existing_technician_code = db.scalar(
+            select(User).where(User.technician_code == payload.technician_code)
+        )
+        if existing_technician_code:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Technician code already exists",
+            )
+
     user = User(
         email=payload.email,
         password_hash=get_password_hash(payload.password),
