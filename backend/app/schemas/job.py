@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.job_event import JobEventType
 from app.models.job import JobPriority, JobStatus
@@ -92,6 +92,17 @@ class JobUpdateCreate(BaseModel):
     message: str
 
 
+class JobUpdatePhotoRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    job_update_id: int
+    file_key: str
+    file_name: str | None
+    content_type: str | None
+    created_at: datetime
+
+
 class JobUpdateRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -100,3 +111,4 @@ class JobUpdateRead(BaseModel):
     author_id: int
     message: str
     created_at: datetime
+    photos: list[JobUpdatePhotoRead] = Field(default_factory=list)

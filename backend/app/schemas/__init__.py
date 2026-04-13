@@ -6,6 +6,7 @@ from app.schemas.job import (
 	JobRead,
 	JobUpdate,
 	JobUpdateCreate,
+	JobUpdatePhotoRead,
 	JobUpdateRead,
 )
 from app.schemas.user import UserCreate, UserRead

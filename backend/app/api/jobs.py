@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_manager_or_admin, require_technician
 from app.db.session import get_db
-from app.models import Job, JobAssignment, JobEvent, JobUpdate as JobUpdateModel, User
+from app.models import Job, JobAssignment, JobEvent, JobUpdate as JobUpdateModel, JobUpdatePhoto, User
 from app.models.job import JobStatus
 from app.models.job_event import JobEventType
 from app.models.user import UserRole
+from app.services.storage import storage_service
 from app.schemas.job import (
     JobAssignRequest,
     JobAssignmentRead,
@@ -18,6 +19,7 @@ from app.schemas.job import (
     JobRead,
     JobUpdate,
     JobUpdateCreate,
+    JobUpdatePhotoRead,
     JobUpdateRead,
 )
 
@@ -41,6 +43,19 @@ def _ensure_job_access(db: Session, job_id: int, current_user: User) -> Job:
     if not is_assigned:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No access to this job")
     return job
+
+
+def _ensure_job_update_access(
+    db: Session,
+    job_id: int,
+    update_id: int,
+    current_user: User,
+) -> JobUpdateModel:
+    _ensure_job_access(db, job_id, current_user)
+    job_update = db.get(JobUpdateModel, update_id)
+    if not job_update or job_update.job_id != job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job update not found")
+    return job_update
 
 
 @router.post("", response_model=JobRead, status_code=status.HTTP_201_CREATED)
@@ -256,3 +271,46 @@ def list_updates(
         .order_by(JobUpdateModel.created_at.desc())
     ).all()
     return updates
+
+
+@router.post(
+    "/{job_id}/updates/{update_id}/photos",
+    response_model=JobUpdatePhotoRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def upload_update_photo(
+    job_id: int,
+    update_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    job_update = _ensure_job_update_access(db, job_id, update_id, current_user)
+    file_key = storage_service.upload_job_update_photo(file)
+
+    photo = JobUpdatePhoto(
+        job_update_id=job_update.id,
+        file_key=file_key,
+        file_name=file.filename,
+        content_type=file.content_type,
+    )
+    db.add(photo)
+    db.commit()
+    db.refresh(photo)
+    return photo
+
+
+@router.get("/{job_id}/updates/{update_id}/photos", response_model=list[JobUpdatePhotoRead])
+def list_update_photos(
+    job_id: int,
+    update_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    job_update = _ensure_job_update_access(db, job_id, update_id, current_user)
+    photos = db.scalars(
+        select(JobUpdatePhoto)
+        .where(JobUpdatePhoto.job_update_id == job_update.id)
+        .order_by(JobUpdatePhoto.created_at.desc())
+    ).all()
+    return photos
