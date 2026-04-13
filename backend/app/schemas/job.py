@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 from ..models.job_event import JobEventType
 from ..models.job import JobPriority, JobStatus
+from .datetime_utils import normalize_for_display
 
 
 class JobCreate(BaseModel):
@@ -63,6 +64,12 @@ class JobRead(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    @field_serializer("scheduled_start", "scheduled_end", "created_at", "updated_at")
+    def serialize_datetime(self, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        return normalize_for_display(value)
+
 
 class JobAssignRequest(BaseModel):
     technician_id: int
@@ -77,6 +84,10 @@ class JobAssignmentRead(BaseModel):
     assigned_by_id: int
     assigned_at: datetime
 
+    @field_serializer("assigned_at")
+    def serialize_datetime(self, value: datetime) -> datetime:
+        return normalize_for_display(value)
+
 
 class JobEventRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -86,6 +97,10 @@ class JobEventRead(BaseModel):
     actor_id: int
     event_type: JobEventType
     occurred_at: datetime
+
+    @field_serializer("occurred_at")
+    def serialize_datetime(self, value: datetime) -> datetime:
+        return normalize_for_display(value)
 
 
 class JobUpdateCreate(BaseModel):
@@ -102,6 +117,10 @@ class JobUpdatePhotoRead(BaseModel):
     content_type: str | None
     created_at: datetime
 
+    @field_serializer("created_at")
+    def serialize_datetime(self, value: datetime) -> datetime:
+        return normalize_for_display(value)
+
 
 class JobUpdateRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -112,6 +131,10 @@ class JobUpdateRead(BaseModel):
     message: str
     created_at: datetime
     photos: list[JobUpdatePhotoRead] = Field(default_factory=list)
+
+    @field_serializer("created_at")
+    def serialize_datetime(self, value: datetime) -> datetime:
+        return normalize_for_display(value)
 
 
 class JobUpdatePhotoDownload(BaseModel):

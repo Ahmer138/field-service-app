@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, field_serializer, field_validator, model_validator
 
 from ..models.user import UserRole
+from .datetime_utils import normalize_for_display
 
 
 class UserCreate(BaseModel):
@@ -43,3 +44,7 @@ class UserRead(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+    @field_serializer("created_at", "updated_at")
+    def serialize_datetime(self, value: datetime) -> datetime:
+        return normalize_for_display(value)

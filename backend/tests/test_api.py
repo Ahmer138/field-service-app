@@ -57,6 +57,8 @@ def test_manager_can_create_user_job_and_assignment(client, session_factory):
     )
     assert create_user_response.status_code == 201
     technician_id = create_user_response.json()["id"]
+    assert create_user_response.json()["created_at"].endswith("+04:00")
+    assert create_user_response.json()["updated_at"].endswith("+04:00")
 
     create_job_response = client.post(
         "/jobs",
@@ -76,6 +78,8 @@ def test_manager_can_create_user_job_and_assignment(client, session_factory):
     )
     assert create_job_response.status_code == 201
     job_id = create_job_response.json()["id"]
+    assert create_job_response.json()["created_at"].endswith("+04:00")
+    assert create_job_response.json()["updated_at"].endswith("+04:00")
 
     assignment_response = client.post(
         f"/jobs/{job_id}/assignments",
@@ -85,6 +89,7 @@ def test_manager_can_create_user_job_and_assignment(client, session_factory):
     assert assignment_response.status_code == 201
     assert assignment_response.json()["job_id"] == job_id
     assert assignment_response.json()["technician_id"] == technician_id
+    assert assignment_response.json()["assigned_at"].endswith("+04:00")
 
 
 def test_manager_can_filter_and_search_users(client, session_factory):
@@ -275,14 +280,18 @@ def test_assigned_technician_can_complete_job_workflow(client, session_factory):
     check_in_response = client.post(f"/jobs/{job_id}/check-in", headers=technician_headers)
     assert check_in_response.status_code == 201
     assert check_in_response.json()["event_type"] == "check_in"
+    assert check_in_response.json()["occurred_at"].endswith("+04:00")
 
     check_out_response = client.post(f"/jobs/{job_id}/check-out", headers=technician_headers)
     assert check_out_response.status_code == 201
     assert check_out_response.json()["event_type"] == "check_out"
+    assert check_out_response.json()["occurred_at"].endswith("+04:00")
 
     job_response = client.get(f"/jobs/{job_id}", headers=technician_headers)
     assert job_response.status_code == 200
     assert job_response.json()["status"] == "completed"
+    assert job_response.json()["created_at"].endswith("+04:00")
+    assert job_response.json()["updated_at"].endswith("+04:00")
 
 
 def test_job_list_supports_manager_filters_and_search(client, session_factory):
@@ -1178,6 +1187,7 @@ def test_job_update_photo_upload_and_download(client, session_factory, monkeypat
     )
     assert create_update_response.status_code == 201
     update_id = create_update_response.json()["id"]
+    assert create_update_response.json()["created_at"].endswith("+04:00")
 
     upload_response = client.post(
         f"/jobs/{job_id}/updates/{update_id}/photos",
@@ -1187,6 +1197,7 @@ def test_job_update_photo_upload_and_download(client, session_factory, monkeypat
     assert upload_response.status_code == 201
     photo = upload_response.json()
     assert photo["file_key"] == "job-updates/before.jpg"
+    assert photo["created_at"].endswith("+04:00")
 
     download_response = client.get(
         f"/jobs/{job_id}/updates/{update_id}/photos/{photo['id']}/download",

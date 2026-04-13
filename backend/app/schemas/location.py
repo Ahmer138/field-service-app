@@ -1,17 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
-from ..core.config import settings
-
-
-def _normalize_for_display(value: datetime) -> datetime:
-    if value.tzinfo is None:
-        value = value.replace(tzinfo=ZoneInfo("UTC"))
-    return value.astimezone(ZoneInfo(settings.DISPLAY_TIMEZONE))
+from .datetime_utils import normalize_for_display
 
 
 class TechnicianLocationCreate(BaseModel):
@@ -34,7 +27,7 @@ class TechnicianLocationRead(BaseModel):
 
     @field_serializer("recorded_at", "created_at")
     def serialize_datetime(self, value: datetime) -> datetime:
-        return _normalize_for_display(value)
+        return normalize_for_display(value)
 
 
 class TechnicianLocationLatestRead(TechnicianLocationRead):
