@@ -271,6 +271,15 @@ def test_storage_health_endpoint(client, monkeypatch):
     assert response.json() == {"storage": "ok"}
 
 
+def test_storage_health_endpoint_reports_unavailable(client, monkeypatch):
+    monkeypatch.setattr(storage_service, "is_available", lambda: False)
+
+    response = client.get("/health/storage")
+
+    assert response.status_code == 200
+    assert response.json() == {"storage": "unavailable"}
+
+
 def test_job_update_photo_can_be_deleted(client, session_factory, monkeypatch):
     manager = create_user(
         session_factory,

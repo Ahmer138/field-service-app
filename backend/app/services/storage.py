@@ -23,7 +23,10 @@ class ObjectStorageService:
             self.client.make_bucket(self.bucket_name)
 
     def is_available(self) -> bool:
-        return self.client.bucket_exists(self.bucket_name)
+        try:
+            return self.client.bucket_exists(self.bucket_name)
+        except Exception:
+            return False
 
     def upload_job_update_photo(self, upload_file) -> str:
         self.ensure_bucket()
