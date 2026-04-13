@@ -312,3 +312,61 @@ def test_job_update_photo_can_be_deleted(client, session_factory, monkeypatch):
     )
     assert list_response.status_code == 200
     assert list_response.json() == []
+
+
+def test_job_update_photo_rejects_non_image_uploads(client, session_factory):
+    manager = create_user(
+        session_factory,
+        email="manager5@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Five",
+    )
+    technician = create_user(
+        session_factory,
+        email="tech5@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Five",
+    )
+
+    with session_factory() as db:
+        job = Job(
+            title="Reject invalid attachment",
+            address_line1="101 Service Way",
+            city="Dubai",
+            state="Dubai",
+            postal_code="00004",
+            country="UAE",
+            created_by_id=manager.id,
+        )
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+
+        assignment = JobAssignment(
+            job_id=job.id,
+            technician_id=technician.id,
+            assigned_by_id=manager.id,
+        )
+        db.add(assignment)
+        db.commit()
+        job_id = job.id
+
+    technician_headers = login(client, email="tech5@example.com", password="secret123")
+
+    create_update_response = client.post(
+        f"/jobs/{job_id}/updates",
+        headers=technician_headers,
+        json={"message": "Tried to attach a text file"},
+    )
+    assert create_update_response.status_code == 201
+    update_id = create_update_response.json()["id"]
+
+    upload_response = client.post(
+        f"/jobs/{job_id}/updates/{update_id}/photos",
+        headers=technician_headers,
+        files={"file": ("notes.txt", b"not-an-image", "text/plain")},
+    )
+    assert upload_response.status_code == 400
+    assert upload_response.json()["detail"] == "Only image uploads are allowed"

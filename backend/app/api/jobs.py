@@ -287,6 +287,12 @@ def upload_update_photo(
     current_user: User = Depends(get_current_user),
 ):
     job_update = _ensure_job_update_access(db, job_id, update_id, current_user)
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only image uploads are allowed",
+        )
+
     file_key = storage_service.upload_job_update_photo(file)
 
     photo = JobUpdatePhoto(
