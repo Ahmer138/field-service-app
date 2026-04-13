@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from .deps import get_current_user, require_manager_or_admin, require_technician
@@ -89,24 +89,50 @@ def create_job(
 
 @router.get("", response_model=list[JobRead])
 def list_jobs(
+    status_filter: JobStatus | None = Query(default=None, alias="status"),
+    priority: str | None = Query(default=None),
+    technician_id: int | None = Query(default=None, ge=1),
+    city: str | None = Query(default=None),
+    q: str | None = Query(default=None, min_length=1),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    stmt = select(Job)
+
     if current_user.role in (UserRole.MANAGER, UserRole.ADMIN):
-        jobs = db.scalars(
-            select(Job).order_by(Job.created_at.desc()).offset(offset).limit(limit)
-        ).all()
-        return jobs
+        if technician_id is not None:
+            stmt = stmt.join(JobAssignment, JobAssignment.job_id == Job.id).where(
+                JobAssignment.technician_id == technician_id
+            )
+    else:
+        stmt = stmt.join(JobAssignment, JobAssignment.job_id == Job.id).where(
+            JobAssignment.technician_id == current_user.id
+        )
+
+    if status_filter is not None:
+        stmt = stmt.where(Job.status == status_filter)
+    if priority is not None:
+        stmt = stmt.where(Job.priority == priority)
+    if city:
+        stmt = stmt.where(Job.city.ilike(f"%{city.strip()}%"))
+    if q:
+        term = f"%{q.strip()}%"
+        stmt = stmt.where(
+            or_(
+                Job.title.ilike(term),
+                Job.description.ilike(term),
+                Job.technician_instructions.ilike(term),
+                Job.address_line1.ilike(term),
+                Job.city.ilike(term),
+                Job.state.ilike(term),
+                Job.postal_code.ilike(term),
+            )
+        )
 
     jobs = db.scalars(
-        select(Job)
-        .join(JobAssignment, JobAssignment.job_id == Job.id)
-        .where(JobAssignment.technician_id == current_user.id)
-        .order_by(Job.created_at.desc())
-        .offset(offset)
-        .limit(limit)
+        stmt.distinct().order_by(Job.created_at.desc()).offset(offset).limit(limit)
     ).all()
     return jobs
 

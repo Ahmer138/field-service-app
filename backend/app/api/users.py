@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from .deps import get_current_user, require_manager_or_admin
@@ -51,6 +51,8 @@ def create_user(
 @router.get("", response_model=list[UserRead])
 def list_users(
     role: UserRole | None = Query(default=None),
+    is_active: bool | None = Query(default=None),
+    q: str | None = Query(default=None, min_length=1),
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -59,6 +61,17 @@ def list_users(
     stmt = select(User).order_by(User.created_at.desc())
     if role is not None:
         stmt = stmt.where(User.role == role)
+    if is_active is not None:
+        stmt = stmt.where(User.is_active == is_active)
+    if q:
+        term = f"%{q.strip()}%"
+        stmt = stmt.where(
+            or_(
+                User.email.ilike(term),
+                User.full_name.ilike(term),
+                User.technician_code.ilike(term),
+            )
+        )
 
     users = db.scalars(stmt.offset(offset).limit(limit)).all()
     return users

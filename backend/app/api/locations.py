@@ -91,6 +91,7 @@ def get_latest_technician_location(
 @router.get("/technicians/latest", response_model=list[TechnicianLocationLatestRead])
 def list_latest_technician_locations(
     include_stale: bool = Query(True),
+    q: str | None = Query(default=None, min_length=1),
     db: Session = Depends(get_db),
     _: User = Depends(require_manager_or_admin),
 ):
@@ -117,6 +118,13 @@ def list_latest_technician_locations(
     ]
     if not include_stale:
         latest_locations = [location for location in latest_locations if not location.is_stale]
+    if q:
+        term = q.strip().lower()
+        latest_locations = [
+            location
+            for location in latest_locations
+            if term in location.technician_name.lower()
+        ]
 
     latest_locations.sort(key=lambda location: location.recorded_at, reverse=True)
     return latest_locations

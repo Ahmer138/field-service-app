@@ -10,7 +10,23 @@ from app.api.users import router as users_router
 from app.db import get_db
 from app.services import storage_service
 
-app = FastAPI(title="Field Service App API", version="0.1.0")
+app = FastAPI(
+    title="Field Service App API",
+    version="0.2.0",
+    summary="Backend API for dispatch, field operations, location tracking, and technician presence",
+    description=(
+        "Field Service App backend for managers, admins, and technicians. "
+        "Supports authentication, job workflows, assignments, updates, photo uploads, "
+        "technician location tracking, and mobile presence monitoring."
+    ),
+    openapi_tags=[
+        {"name": "auth", "description": "Authentication and token issuance."},
+        {"name": "users", "description": "Manager/admin user management and current-user lookup."},
+        {"name": "jobs", "description": "Job lifecycle, assignments, updates, events, and photos."},
+        {"name": "locations", "description": "Technician GPS location ping, latest location, and history."},
+        {"name": "presence", "description": "Mobile session heartbeat, logout, and live presence views."},
+    ],
+)
 
 app.include_router(auth_router)
 app.include_router(jobs_router)

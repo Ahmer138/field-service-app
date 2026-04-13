@@ -87,6 +87,51 @@ def test_manager_can_create_user_job_and_assignment(client, session_factory):
     assert assignment_response.json()["technician_id"] == technician_id
 
 
+def test_manager_can_filter_and_search_users(client, session_factory):
+    create_user(
+        session_factory,
+        email="manager-user-filter@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager User Filter",
+    )
+    create_user(
+        session_factory,
+        email="active-tech@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Active HVAC Tech",
+    )
+    create_user(
+        session_factory,
+        email="inactive-admin@example.com",
+        password="secret123",
+        role=UserRole.ADMIN,
+        full_name="Inactive Admin",
+    )
+
+    with session_factory() as db:
+        active_tech = db.query(User).filter(User.email == "active-tech@example.com").first()
+        active_tech.technician_code = "DXB-100"
+        inactive_admin = db.query(User).filter(User.email == "inactive-admin@example.com").first()
+        inactive_admin.is_active = False
+        db.add(active_tech)
+        db.add(inactive_admin)
+        db.commit()
+
+    manager_headers = login(client, email="manager-user-filter@example.com", password="secret123")
+
+    response = client.get(
+        "/users?role=technician&is_active=true&q=DXB",
+        headers=manager_headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["email"] == "active-tech@example.com"
+
+
 def test_create_user_rejects_duplicate_technician_code(client, session_factory):
     create_user(
         session_factory,
@@ -238,6 +283,73 @@ def test_assigned_technician_can_complete_job_workflow(client, session_factory):
     job_response = client.get(f"/jobs/{job_id}", headers=technician_headers)
     assert job_response.status_code == 200
     assert job_response.json()["status"] == "completed"
+
+
+def test_job_list_supports_manager_filters_and_search(client, session_factory):
+    manager = create_user(
+        session_factory,
+        email="manager-job-filter@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Job Filter",
+    )
+    technician = create_user(
+        session_factory,
+        email="tech-job-filter@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Job Filter",
+    )
+
+    manager_headers = login(client, email="manager-job-filter@example.com", password="secret123")
+
+    urgent_job_response = client.post(
+        "/jobs",
+        headers=manager_headers,
+        json={
+            "title": "Emergency compressor repair",
+            "address_line1": "12 Marina Walk",
+            "city": "Dubai",
+            "state": "Dubai",
+            "postal_code": "10001",
+            "country": "UAE",
+            "priority": "urgent",
+        },
+    )
+    assert urgent_job_response.status_code == 201
+    urgent_job_id = urgent_job_response.json()["id"]
+
+    normal_job_response = client.post(
+        "/jobs",
+        headers=manager_headers,
+        json={
+            "title": "Routine inspection",
+            "address_line1": "88 Corniche Rd",
+            "city": "Abu Dhabi",
+            "state": "Abu Dhabi",
+            "postal_code": "10002",
+            "country": "UAE",
+            "priority": "low",
+        },
+    )
+    assert normal_job_response.status_code == 201
+
+    assignment_response = client.post(
+        f"/jobs/{urgent_job_id}/assignments",
+        headers=manager_headers,
+        json={"technician_id": technician.id},
+    )
+    assert assignment_response.status_code == 201
+
+    response = client.get(
+        f"/jobs?priority=urgent&city=Dubai&q=compressor&technician_id={technician.id}",
+        headers=manager_headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["title"] == "Emergency compressor repair"
 
 
 def test_manager_can_remove_assignment_and_revoke_access(client, session_factory):
@@ -607,6 +719,15 @@ def test_latest_location_list_can_exclude_stale_technicians(client, session_fact
     assert payload[0]["technician_id"] == fresh_technician.id
     assert payload[0]["is_stale"] is False
 
+    search_response = client.get(
+        "/locations/technicians/latest?q=Filter New",
+        headers=manager_headers,
+    )
+    assert search_response.status_code == 200
+    search_payload = search_response.json()
+    assert len(search_payload) == 1
+    assert search_payload[0]["technician_id"] == fresh_technician.id
+
 
 def test_technician_presence_heartbeat_and_manager_view(client, session_factory):
     create_user(
@@ -738,6 +859,15 @@ def test_manager_can_list_presence_and_filter_offline(client, session_factory):
     online_only_payload = online_only_response.json()
     assert len(online_only_payload) == 1
     assert online_only_payload[0]["technician_id"] == online_technician.id
+
+    search_response = client.get(
+        "/presence/technicians?q=Presence Online",
+        headers=manager_headers,
+    )
+    assert search_response.status_code == 200
+    search_payload = search_response.json()
+    assert len(search_payload) == 1
+    assert search_payload[0]["technician_id"] == online_technician.id
 
 
 def test_presence_endpoints_enforce_roles(client, session_factory):

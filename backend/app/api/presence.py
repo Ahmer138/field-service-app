@@ -142,6 +142,7 @@ def get_technician_presence(
 @router.get("/technicians", response_model=list[TechnicianPresenceRead])
 def list_technician_presence(
     include_offline: bool = Query(True),
+    q: str | None = Query(default=None, min_length=1),
     db: Session = Depends(get_db),
     _: User = Depends(require_manager_or_admin),
 ):
@@ -169,6 +170,13 @@ def list_technician_presence(
     ]
     if not include_offline:
         payload = [presence for presence in payload if presence.is_online]
+    if q:
+        term = q.strip().lower()
+        payload = [
+            presence
+            for presence in payload
+            if term in presence.technician_name.lower()
+        ]
 
     payload.sort(key=lambda presence: (presence.is_online, presence.last_seen_at), reverse=True)
     return payload
