@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from uuid import uuid4
 
 from minio import Minio
@@ -36,6 +37,14 @@ class ObjectStorageService:
             content_type=upload_file.content_type or "application/octet-stream",
         )
         return object_key
+
+    def get_download_url(self, object_key: str, expires_seconds: int = 3600) -> str:
+        self.ensure_bucket()
+        return self.client.presigned_get_object(
+            self.bucket_name,
+            object_key,
+            expires=timedelta(seconds=expires_seconds),
+        )
 
 
 storage_service = ObjectStorageService()

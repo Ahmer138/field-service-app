@@ -4,8 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.job_event import JobEventType
-from app.models.job import JobPriority, JobStatus
+from ..models.job_event import JobEventType
+from ..models.job import JobPriority, JobStatus
 
 
 class JobCreate(BaseModel):
@@ -112,3 +112,9 @@ class JobUpdateRead(BaseModel):
     message: str
     created_at: datetime
     photos: list[JobUpdatePhotoRead] = Field(default_factory=list)
+
+
+class JobUpdatePhotoDownload(BaseModel):
+    file_key: str
+    download_url: str
+    expires_in_seconds: int

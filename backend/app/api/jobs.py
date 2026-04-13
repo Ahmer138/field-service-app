@@ -4,13 +4,13 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_manager_or_admin, require_technician
-from app.db.session import get_db
-from app.models import Job, JobAssignment, JobEvent, JobUpdate as JobUpdateModel, JobUpdatePhoto, User
-from app.models.job import JobStatus
-from app.models.job_event import JobEventType
-from app.models.user import UserRole
-from app.services.storage import storage_service
+from .deps import get_current_user, require_manager_or_admin, require_technician
+from ..db import get_db
+from ..models import Job, JobAssignment, JobEvent, JobUpdate as JobUpdateModel, JobUpdatePhoto, User
+from ..models.job import JobStatus
+from ..models.job_event import JobEventType
+from ..models.user import UserRole
+from ..services import storage_service
 from app.schemas.job import (
     JobAssignRequest,
     JobAssignmentRead,
@@ -19,6 +19,7 @@ from app.schemas.job import (
     JobRead,
     JobUpdate,
     JobUpdateCreate,
+    JobUpdatePhotoDownload,
     JobUpdatePhotoRead,
     JobUpdateRead,
 )
@@ -314,3 +315,26 @@ def list_update_photos(
         .order_by(JobUpdatePhoto.created_at.desc())
     ).all()
     return photos
+
+
+@router.get(
+    "/{job_id}/updates/{update_id}/photos/{photo_id}/download",
+    response_model=JobUpdatePhotoDownload,
+)
+def get_update_photo_download(
+    job_id: int,
+    update_id: int,
+    photo_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    job_update = _ensure_job_update_access(db, job_id, update_id, current_user)
+    photo = db.get(JobUpdatePhoto, photo_id)
+    if not photo or photo.job_update_id != job_update.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo not found")
+
+    return JobUpdatePhotoDownload(
+        file_key=photo.file_key,
+        download_url=storage_service.get_download_url(photo.file_key),
+        expires_in_seconds=3600,
+    )
