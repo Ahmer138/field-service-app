@@ -49,5 +49,9 @@ class ObjectStorageService:
             expires=timedelta(seconds=expires_seconds),
         )
 
+    def delete_object(self, object_key: str) -> None:
+        self.ensure_bucket()
+        self.client.remove_object(self.bucket_name, object_key)
+
 
 storage_service = ObjectStorageService()

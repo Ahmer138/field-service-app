@@ -228,3 +228,87 @@ def test_storage_health_endpoint(client, monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {"storage": "ok"}
+
+
+def test_job_update_photo_can_be_deleted(client, session_factory, monkeypatch):
+    manager = create_user(
+        session_factory,
+        email="manager4@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Four",
+    )
+    technician = create_user(
+        session_factory,
+        email="tech4@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Four",
+    )
+
+    with session_factory() as db:
+        job = Job(
+            title="Remove outdated photo",
+            address_line1="100 Service Way",
+            city="Dubai",
+            state="Dubai",
+            postal_code="00003",
+            country="UAE",
+            created_by_id=manager.id,
+        )
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+
+        assignment = JobAssignment(
+            job_id=job.id,
+            technician_id=technician.id,
+            assigned_by_id=manager.id,
+        )
+        db.add(assignment)
+        db.commit()
+        job_id = job.id
+
+    deleted_keys: list[str] = []
+    monkeypatch.setattr(
+        storage_service,
+        "upload_job_update_photo",
+        lambda upload_file: f"job-updates/{upload_file.filename}",
+    )
+    monkeypatch.setattr(
+        storage_service,
+        "delete_object",
+        lambda object_key: deleted_keys.append(object_key),
+    )
+
+    technician_headers = login(client, email="tech4@example.com", password="secret123")
+
+    create_update_response = client.post(
+        f"/jobs/{job_id}/updates",
+        headers=technician_headers,
+        json={"message": "Uploaded the wrong image"},
+    )
+    assert create_update_response.status_code == 201
+    update_id = create_update_response.json()["id"]
+
+    upload_response = client.post(
+        f"/jobs/{job_id}/updates/{update_id}/photos",
+        headers=technician_headers,
+        files={"file": ("wrong.jpg", b"image-bytes", "image/jpeg")},
+    )
+    assert upload_response.status_code == 201
+    photo_id = upload_response.json()["id"]
+
+    delete_response = client.delete(
+        f"/jobs/{job_id}/updates/{update_id}/photos/{photo_id}",
+        headers=technician_headers,
+    )
+    assert delete_response.status_code == 204
+    assert deleted_keys == ["job-updates/wrong.jpg"]
+
+    list_response = client.get(
+        f"/jobs/{job_id}/updates/{update_id}/photos",
+        headers=technician_headers,
+    )
+    assert list_response.status_code == 200
+    assert list_response.json() == []

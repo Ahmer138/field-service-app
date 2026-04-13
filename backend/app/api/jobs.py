@@ -338,3 +338,24 @@ def get_update_photo_download(
         download_url=storage_service.get_download_url(photo.file_key),
         expires_in_seconds=3600,
     )
+
+
+@router.delete(
+    "/{job_id}/updates/{update_id}/photos/{photo_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_update_photo(
+    job_id: int,
+    update_id: int,
+    photo_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    job_update = _ensure_job_update_access(db, job_id, update_id, current_user)
+    photo = db.get(JobUpdatePhoto, photo_id)
+    if not photo or photo.job_update_id != job_update.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Photo not found")
+
+    storage_service.delete_object(photo.file_key)
+    db.delete(photo)
+    db.commit()
