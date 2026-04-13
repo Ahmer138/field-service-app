@@ -219,3 +219,12 @@ def test_job_update_photo_upload_and_download(client, session_factory, monkeypat
     )
     assert download_response.status_code == 200
     assert download_response.json()["download_url"] == "https://example.test/job-updates/before.jpg"
+
+
+def test_storage_health_endpoint(client, monkeypatch):
+    monkeypatch.setattr(storage_service, "is_available", lambda: True)
+
+    response = client.get("/health/storage")
+
+    assert response.status_code == 200
+    assert response.json() == {"storage": "ok"}

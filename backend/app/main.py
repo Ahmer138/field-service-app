@@ -6,6 +6,7 @@ from app.api.auth import router as auth_router
 from app.api.jobs import router as jobs_router
 from app.api.users import router as users_router
 from app.db import get_db
+from app.services import storage_service
 
 app = FastAPI(title="Field Service App API", version="0.1.0")
 
@@ -31,3 +32,8 @@ def health_db(db: Session = Depends(get_db)):
     """
     db.execute(text("SELECT 1"))
     return {"db": "ok"}
+
+
+@app.get("/health/storage")
+def health_storage():
+    return {"storage": "ok" if storage_service.is_available() else "unavailable"}
