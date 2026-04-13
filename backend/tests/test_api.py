@@ -238,6 +238,65 @@ def test_assigned_technician_can_complete_job_workflow(client, session_factory):
     assert job_response.json()["status"] == "completed"
 
 
+def test_manager_can_remove_assignment_and_revoke_access(client, session_factory):
+    manager = create_user(
+        session_factory,
+        email="manager-unassign@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Unassign",
+    )
+    technician = create_user(
+        session_factory,
+        email="tech-unassign@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Unassign",
+    )
+
+    with session_factory() as db:
+        job = Job(
+            title="Unassign technician",
+            address_line1="600 Dispatch St",
+            city="Dubai",
+            state="Dubai",
+            postal_code="00008",
+            country="UAE",
+            created_by_id=manager.id,
+        )
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+
+        assignment = JobAssignment(
+            job_id=job.id,
+            technician_id=technician.id,
+            assigned_by_id=manager.id,
+        )
+        db.add(assignment)
+        db.commit()
+        db.refresh(assignment)
+        job_id = job.id
+        assignment_id = assignment.id
+
+    manager_headers = login(client, email="manager-unassign@example.com", password="secret123")
+    technician_headers = login(client, email="tech-unassign@example.com", password="secret123")
+
+    remove_response = client.delete(
+        f"/jobs/{job_id}/assignments/{assignment_id}",
+        headers=manager_headers,
+    )
+    assert remove_response.status_code == 204
+
+    list_response = client.get(f"/jobs/{job_id}/assignments", headers=manager_headers)
+    assert list_response.status_code == 200
+    assert list_response.json() == []
+
+    job_response = client.get(f"/jobs/{job_id}", headers=technician_headers)
+    assert job_response.status_code == 403
+    assert job_response.json()["detail"] == "No access to this job"
+
+
 def test_unassigned_technician_cannot_access_job(client, session_factory):
     manager = create_user(
         session_factory,

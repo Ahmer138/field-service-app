@@ -193,6 +193,24 @@ def list_assignments(
     return assignments
 
 
+@router.delete(
+    "/{job_id}/assignments/{assignment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def remove_assignment(
+    job_id: int,
+    assignment_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_manager_or_admin),
+):
+    assignment = db.get(JobAssignment, assignment_id)
+    if not assignment or assignment.job_id != job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assignment not found")
+
+    db.delete(assignment)
+    db.commit()
+
+
 @router.post("/{job_id}/check-in", response_model=JobEventRead, status_code=status.HTTP_201_CREATED)
 def check_in(
     job_id: int,
