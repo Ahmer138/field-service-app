@@ -185,6 +185,82 @@ def test_assigned_technician_can_complete_job_workflow(client, session_factory):
     assert job_response.json()["status"] == "completed"
 
 
+def test_unassigned_technician_cannot_access_job(client, session_factory):
+    manager = create_user(
+        session_factory,
+        email="manager-authz@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Authz",
+    )
+    assigned_technician = create_user(
+        session_factory,
+        email="assigned-tech@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Assigned Tech",
+    )
+    unassigned_technician = create_user(
+        session_factory,
+        email="unassigned-tech@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Unassigned Tech",
+    )
+
+    with session_factory() as db:
+        job = Job(
+            title="Restricted job",
+            address_line1="500 Secure Blvd",
+            city="Dubai",
+            state="Dubai",
+            postal_code="00005",
+            country="UAE",
+            created_by_id=manager.id,
+        )
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+
+        assignment = JobAssignment(
+            job_id=job.id,
+            technician_id=assigned_technician.id,
+            assigned_by_id=manager.id,
+        )
+        db.add(assignment)
+        db.commit()
+        job_id = job.id
+
+    unassigned_headers = login(client, email="unassigned-tech@example.com", password="secret123")
+
+    response = client.get(f"/jobs/{job_id}", headers=unassigned_headers)
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "No access to this job"
+
+
+def test_inactive_user_token_is_rejected(client, session_factory):
+    create_user(
+        session_factory,
+        email="inactive-tech@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Inactive Tech",
+    )
+    headers = login(client, email="inactive-tech@example.com", password="secret123")
+
+    with session_factory() as db:
+        user = db.query(User).filter(User.email == "inactive-tech@example.com").first()
+        user.is_active = False
+        db.add(user)
+        db.commit()
+
+    response = client.get("/users/me", headers=headers)
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "User is inactive"
+
+
 def test_job_update_photo_upload_and_download(client, session_factory, monkeypatch):
     manager = create_user(
         session_factory,
