@@ -399,14 +399,14 @@ def test_manager_can_list_latest_location_per_technician(client, session_factory
     response = client.get("/locations/technicians/latest", headers=manager_headers)
 
     assert response.status_code == 200
-    payload = sorted(response.json(), key=lambda item: item["technician_id"])
+    payload = response.json()
     assert len(payload) == 2
-    assert payload[0]["technician_id"] == tech_one.id
-    assert payload[0]["latitude"] == 25.2
-    assert payload[0]["technician_name"] == "Tech Location One"
-    assert payload[0]["is_stale"] is False
-    assert payload[1]["technician_id"] == tech_two.id
-    assert payload[1]["latitude"] == 24.9
+    assert payload[0]["technician_id"] == tech_two.id
+    assert payload[0]["latitude"] == 24.9
+    assert payload[1]["technician_id"] == tech_one.id
+    assert payload[1]["latitude"] == 25.2
+    assert payload[1]["technician_name"] == "Tech Location One"
+    assert payload[1]["is_stale"] is False
 
 
 def test_location_endpoints_enforce_roles(client, session_factory):
@@ -542,6 +542,68 @@ def test_latest_location_can_be_marked_stale(client, session_factory):
     assert latest_response.status_code == 200
     assert latest_response.json()["technician_name"] == "Tech Location Stale"
     assert latest_response.json()["is_stale"] is True
+
+
+def test_latest_location_list_can_exclude_stale_technicians(client, session_factory):
+    create_user(
+        session_factory,
+        email="manager-location-filter@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Location Filter",
+    )
+    stale_technician = create_user(
+        session_factory,
+        email="tech-location-filter-old@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Location Filter Old",
+    )
+    fresh_technician = create_user(
+        session_factory,
+        email="tech-location-filter-new@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Location Filter New",
+    )
+
+    manager_headers = login(client, email="manager-location-filter@example.com", password="secret123")
+    stale_headers = login(client, email="tech-location-filter-old@example.com", password="secret123")
+    fresh_headers = login(client, email="tech-location-filter-new@example.com", password="secret123")
+
+    stale_time = datetime.now(timezone.utc) - timedelta(minutes=10)
+
+    stale_response = client.post(
+        "/locations/me",
+        headers=stale_headers,
+        json={
+            "latitude": 25.6,
+            "longitude": 55.6,
+            "recorded_at": stale_time.isoformat(),
+        },
+    )
+    assert stale_response.status_code == 201
+
+    fresh_response = client.post(
+        "/locations/me",
+        headers=fresh_headers,
+        json={
+            "latitude": 25.7,
+            "longitude": 55.7,
+        },
+    )
+    assert fresh_response.status_code == 201
+
+    response = client.get(
+        "/locations/technicians/latest?include_stale=false",
+        headers=manager_headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["technician_id"] == fresh_technician.id
+    assert payload[0]["is_stale"] is False
 
 def test_job_workflow_rejects_invalid_check_in_and_check_out_sequences(client, session_factory):
     manager = create_user(
