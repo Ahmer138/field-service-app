@@ -10,4 +10,5 @@ from .job import (
     JobUpdatePhotoRead,
     JobUpdateRead,
 )
+from .location import TechnicianLocationCreate, TechnicianLocationRead
 from .user import UserCreate, UserRead

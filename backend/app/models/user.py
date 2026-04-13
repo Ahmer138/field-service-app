@@ -38,3 +38,4 @@ class User(Base):
     created_jobs = relationship("Job", back_populates="created_by")
     events = relationship("JobEvent", back_populates="actor")
     updates = relationship("JobUpdate", back_populates="author")
+    locations = relationship("TechnicianLocation", back_populates="technician")

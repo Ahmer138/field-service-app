@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from app.core.security import get_password_hash
 from app.models import Job, JobAssignment, User
 from app.models.user import UserRole
@@ -296,6 +298,151 @@ def test_manager_can_remove_assignment_and_revoke_access(client, session_factory
     assert job_response.status_code == 403
     assert job_response.json()["detail"] == "No access to this job"
 
+
+def test_technician_can_send_location_and_manager_can_read_latest(client, session_factory):
+    manager = create_user(
+        session_factory,
+        email="manager-location@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Location",
+    )
+    technician = create_user(
+        session_factory,
+        email="tech-location@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Location",
+    )
+
+    manager_headers = login(client, email="manager-location@example.com", password="secret123")
+    technician_headers = login(client, email="tech-location@example.com", password="secret123")
+
+    ping_response = client.post(
+        "/locations/me",
+        headers=technician_headers,
+        json={
+            "latitude": 25.2048,
+            "longitude": 55.2708,
+            "accuracy_meters": 12.5,
+        },
+    )
+    assert ping_response.status_code == 201
+    assert ping_response.json()["technician_id"] == technician.id
+
+    latest_response = client.get(
+        f"/locations/technicians/{technician.id}/latest",
+        headers=manager_headers,
+    )
+    assert latest_response.status_code == 200
+    assert latest_response.json()["latitude"] == 25.2048
+    assert latest_response.json()["longitude"] == 55.2708
+
+
+def test_manager_can_list_latest_location_per_technician(client, session_factory):
+    create_user(
+        session_factory,
+        email="manager-location-list@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Location List",
+    )
+    tech_one = create_user(
+        session_factory,
+        email="tech-location-one@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Location One",
+    )
+    tech_two = create_user(
+        session_factory,
+        email="tech-location-two@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Location Two",
+    )
+
+    manager_headers = login(client, email="manager-location-list@example.com", password="secret123")
+    tech_one_headers = login(client, email="tech-location-one@example.com", password="secret123")
+    tech_two_headers = login(client, email="tech-location-two@example.com", password="secret123")
+
+    older_time = datetime.now(timezone.utc) - timedelta(minutes=10)
+    newer_time = datetime.now(timezone.utc)
+
+    client.post(
+        "/locations/me",
+        headers=tech_one_headers,
+        json={
+            "latitude": 25.1,
+            "longitude": 55.1,
+            "recorded_at": older_time.isoformat(),
+        },
+    )
+    client.post(
+        "/locations/me",
+        headers=tech_one_headers,
+        json={
+            "latitude": 25.2,
+            "longitude": 55.2,
+            "recorded_at": newer_time.isoformat(),
+        },
+    )
+    client.post(
+        "/locations/me",
+        headers=tech_two_headers,
+        json={
+            "latitude": 24.9,
+            "longitude": 54.9,
+        },
+    )
+
+    response = client.get("/locations/technicians/latest", headers=manager_headers)
+
+    assert response.status_code == 200
+    payload = sorted(response.json(), key=lambda item: item["technician_id"])
+    assert len(payload) == 2
+    assert payload[0]["technician_id"] == tech_one.id
+    assert payload[0]["latitude"] == 25.2
+    assert payload[1]["technician_id"] == tech_two.id
+    assert payload[1]["latitude"] == 24.9
+
+
+def test_location_endpoints_enforce_roles(client, session_factory):
+    create_user(
+        session_factory,
+        email="manager-location-role@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Location Role",
+    )
+    technician = create_user(
+        session_factory,
+        email="tech-location-role@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Location Role",
+    )
+
+    manager_headers = login(client, email="manager-location-role@example.com", password="secret123")
+    technician_headers = login(client, email="tech-location-role@example.com", password="secret123")
+
+    manager_ping_response = client.post(
+        "/locations/me",
+        headers=manager_headers,
+        json={
+            "latitude": 25.0,
+            "longitude": 55.0,
+        },
+    )
+    assert manager_ping_response.status_code == 403
+    assert manager_ping_response.json()["detail"] == "Technician role required"
+
+    technician_latest_response = client.get(
+        f"/locations/technicians/{technician.id}/latest",
+        headers=technician_headers,
+    )
+    assert technician_latest_response.status_code == 403
+    assert technician_latest_response.json()["detail"] == "Insufficient permissions"
 
 def test_job_workflow_rejects_invalid_check_in_and_check_out_sequences(client, session_factory):
     manager = create_user(
