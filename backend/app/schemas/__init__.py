@@ -11,4 +11,5 @@ from .job import (
     JobUpdateRead,
 )
 from .location import TechnicianLocationCreate, TechnicianLocationLatestRead, TechnicianLocationRead
+from .presence import TechnicianPresenceRead
 from .user import UserCreate, UserRead

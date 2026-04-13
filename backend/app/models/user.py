@@ -39,3 +39,4 @@ class User(Base):
     events = relationship("JobEvent", back_populates="actor")
     updates = relationship("JobUpdate", back_populates="author")
     locations = relationship("TechnicianLocation", back_populates="technician")
+    presence = relationship("TechnicianPresence", back_populates="technician", uselist=False)

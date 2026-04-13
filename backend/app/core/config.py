@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     # A technician is considered "stale" for manager views if no location ping arrives
     # within this many minutes.
     LOCATION_STALE_AFTER_MINUTES: int = 5
+    PRESENCE_ONLINE_AFTER_MINUTES: int = 2
+    DISPLAY_TIMEZONE: str = "Asia/Dubai"
 
 
 settings = Settings()

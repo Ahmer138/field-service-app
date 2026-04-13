@@ -337,6 +337,7 @@ def test_technician_can_send_location_and_manager_can_read_latest(client, sessio
     assert latest_response.status_code == 200
     assert latest_response.json()["latitude"] == 25.2048
     assert latest_response.json()["longitude"] == 55.2708
+    assert latest_response.json()["recorded_at"].endswith("+04:00")
 
 
 def test_manager_can_list_latest_location_per_technician(client, session_factory):
@@ -542,6 +543,7 @@ def test_latest_location_can_be_marked_stale(client, session_factory):
     assert latest_response.status_code == 200
     assert latest_response.json()["technician_name"] == "Tech Location Stale"
     assert latest_response.json()["is_stale"] is True
+    assert latest_response.json()["recorded_at"].endswith("+04:00")
 
 
 def test_latest_location_list_can_exclude_stale_technicians(client, session_factory):
@@ -604,6 +606,169 @@ def test_latest_location_list_can_exclude_stale_technicians(client, session_fact
     assert len(payload) == 1
     assert payload[0]["technician_id"] == fresh_technician.id
     assert payload[0]["is_stale"] is False
+
+
+def test_technician_presence_heartbeat_and_manager_view(client, session_factory):
+    create_user(
+        session_factory,
+        email="manager-presence@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Presence",
+    )
+    technician = create_user(
+        session_factory,
+        email="tech-presence@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Presence",
+    )
+
+    manager_headers = login(client, email="manager-presence@example.com", password="secret123")
+    technician_headers = login(client, email="tech-presence@example.com", password="secret123")
+
+    location_response = client.post(
+        "/locations/me",
+        headers=technician_headers,
+        json={"latitude": 25.8, "longitude": 55.8},
+    )
+    assert location_response.status_code == 201
+
+    heartbeat_response = client.post("/presence/me/heartbeat", headers=technician_headers)
+    assert heartbeat_response.status_code == 201
+    assert heartbeat_response.json()["technician_id"] == technician.id
+    assert heartbeat_response.json()["is_logged_in"] is True
+    assert heartbeat_response.json()["is_online"] is True
+    assert heartbeat_response.json()["session_started_at"].endswith("+04:00")
+    assert heartbeat_response.json()["last_seen_at"].endswith("+04:00")
+    assert heartbeat_response.json()["latest_location"]["latitude"] == 25.8
+
+    manager_view_response = client.get(
+        f"/presence/technicians/{technician.id}",
+        headers=manager_headers,
+    )
+    assert manager_view_response.status_code == 200
+    assert manager_view_response.json()["technician_name"] == "Tech Presence"
+    assert manager_view_response.json()["is_online"] is True
+
+
+def test_technician_presence_logout_marks_offline(client, session_factory):
+    create_user(
+        session_factory,
+        email="manager-presence-logout@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Presence Logout",
+    )
+    technician = create_user(
+        session_factory,
+        email="tech-presence-logout@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Presence Logout",
+    )
+
+    manager_headers = login(client, email="manager-presence-logout@example.com", password="secret123")
+    technician_headers = login(client, email="tech-presence-logout@example.com", password="secret123")
+
+    heartbeat_response = client.post("/presence/me/heartbeat", headers=technician_headers)
+    assert heartbeat_response.status_code == 201
+
+    logout_response = client.post("/presence/me/logout", headers=technician_headers)
+    assert logout_response.status_code == 204
+
+    manager_view_response = client.get(
+        f"/presence/technicians/{technician.id}",
+        headers=manager_headers,
+    )
+    assert manager_view_response.status_code == 200
+    assert manager_view_response.json()["is_logged_in"] is False
+    assert manager_view_response.json()["is_online"] is False
+
+
+def test_manager_can_list_presence_and_filter_offline(client, session_factory):
+    create_user(
+        session_factory,
+        email="manager-presence-list@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Presence List",
+    )
+    online_technician = create_user(
+        session_factory,
+        email="tech-presence-online@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Presence Online",
+    )
+    offline_technician = create_user(
+        session_factory,
+        email="tech-presence-offline@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Presence Offline",
+    )
+
+    manager_headers = login(client, email="manager-presence-list@example.com", password="secret123")
+    online_headers = login(client, email="tech-presence-online@example.com", password="secret123")
+    offline_headers = login(client, email="tech-presence-offline@example.com", password="secret123")
+
+    online_heartbeat_response = client.post("/presence/me/heartbeat", headers=online_headers)
+    assert online_heartbeat_response.status_code == 201
+    offline_heartbeat_response = client.post("/presence/me/heartbeat", headers=offline_headers)
+    assert offline_heartbeat_response.status_code == 201
+
+    offline_logout_response = client.post("/presence/me/logout", headers=offline_headers)
+    assert offline_logout_response.status_code == 204
+
+    all_response = client.get("/presence/technicians", headers=manager_headers)
+    assert all_response.status_code == 200
+    all_payload = all_response.json()
+    assert len(all_payload) == 2
+    assert all_payload[0]["technician_id"] == online_technician.id
+    assert all_payload[0]["is_online"] is True
+    assert all_payload[1]["technician_id"] == offline_technician.id
+    assert all_payload[1]["is_online"] is False
+
+    online_only_response = client.get(
+        "/presence/technicians?include_offline=false",
+        headers=manager_headers,
+    )
+    assert online_only_response.status_code == 200
+    online_only_payload = online_only_response.json()
+    assert len(online_only_payload) == 1
+    assert online_only_payload[0]["technician_id"] == online_technician.id
+
+
+def test_presence_endpoints_enforce_roles(client, session_factory):
+    create_user(
+        session_factory,
+        email="manager-presence-role@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Presence Role",
+    )
+    technician = create_user(
+        session_factory,
+        email="tech-presence-role@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Presence Role",
+    )
+
+    manager_headers = login(client, email="manager-presence-role@example.com", password="secret123")
+    technician_headers = login(client, email="tech-presence-role@example.com", password="secret123")
+
+    manager_heartbeat_response = client.post("/presence/me/heartbeat", headers=manager_headers)
+    assert manager_heartbeat_response.status_code == 403
+    assert manager_heartbeat_response.json()["detail"] == "Technician role required"
+
+    technician_view_response = client.get(
+        f"/presence/technicians/{technician.id}",
+        headers=technician_headers,
+    )
+    assert technician_view_response.status_code == 403
+    assert technician_view_response.json()["detail"] == "Insufficient permissions"
 
 def test_job_workflow_rejects_invalid_check_in_and_check_out_sequences(client, session_factory):
     manager = create_user(
