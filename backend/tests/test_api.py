@@ -297,6 +297,73 @@ def test_manager_can_remove_assignment_and_revoke_access(client, session_factory
     assert job_response.json()["detail"] == "No access to this job"
 
 
+def test_job_workflow_rejects_invalid_check_in_and_check_out_sequences(client, session_factory):
+    manager = create_user(
+        session_factory,
+        email="manager-flow@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Flow",
+    )
+    technician = create_user(
+        session_factory,
+        email="tech-flow@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Flow",
+    )
+
+    with session_factory() as db:
+        job = Job(
+            title="Sequence validation",
+            address_line1="800 Workflow Ave",
+            city="Dubai",
+            state="Dubai",
+            postal_code="00009",
+            country="UAE",
+            created_by_id=manager.id,
+        )
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+
+        assignment = JobAssignment(
+            job_id=job.id,
+            technician_id=technician.id,
+            assigned_by_id=manager.id,
+        )
+        db.add(assignment)
+        db.commit()
+        job_id = job.id
+
+    technician_headers = login(client, email="tech-flow@example.com", password="secret123")
+
+    early_check_out_response = client.post(f"/jobs/{job_id}/check-out", headers=technician_headers)
+    assert early_check_out_response.status_code == 400
+    assert early_check_out_response.json()["detail"] == "Job must be in progress before check-out"
+
+    first_check_in_response = client.post(f"/jobs/{job_id}/check-in", headers=technician_headers)
+    assert first_check_in_response.status_code == 201
+
+    second_check_in_response = client.post(f"/jobs/{job_id}/check-in", headers=technician_headers)
+    assert second_check_in_response.status_code == 400
+    assert second_check_in_response.json()["detail"] == "Job is already in progress"
+
+    first_check_out_response = client.post(f"/jobs/{job_id}/check-out", headers=technician_headers)
+    assert first_check_out_response.status_code == 201
+
+    second_check_out_response = client.post(f"/jobs/{job_id}/check-out", headers=technician_headers)
+    assert second_check_out_response.status_code == 400
+    assert second_check_out_response.json()["detail"] == "Job is already completed"
+
+    post_completion_check_in_response = client.post(
+        f"/jobs/{job_id}/check-in",
+        headers=technician_headers,
+    )
+    assert post_completion_check_in_response.status_code == 400
+    assert post_completion_check_in_response.json()["detail"] == "Completed jobs cannot be checked in"
+
+
 def test_unassigned_technician_cannot_access_job(client, session_factory):
     manager = create_user(
         session_factory,

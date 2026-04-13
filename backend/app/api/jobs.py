@@ -218,6 +218,16 @@ def check_in(
     current_user: User = Depends(require_technician),
 ):
     job = _ensure_job_access(db, job_id, current_user)
+    if job.status == JobStatus.IN_PROGRESS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job is already in progress",
+        )
+    if job.status == JobStatus.COMPLETED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Completed jobs cannot be checked in",
+        )
 
     event = JobEvent(job_id=job.id, actor_id=current_user.id, event_type=JobEventType.CHECK_IN)
     if job.status == JobStatus.NOT_STARTED:
@@ -237,6 +247,16 @@ def check_out(
     current_user: User = Depends(require_technician),
 ):
     job = _ensure_job_access(db, job_id, current_user)
+    if job.status == JobStatus.NOT_STARTED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job must be in progress before check-out",
+        )
+    if job.status == JobStatus.COMPLETED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Job is already completed",
+        )
 
     event = JobEvent(job_id=job.id, actor_id=current_user.id, event_type=JobEventType.CHECK_OUT)
     if job.status != JobStatus.COMPLETED:
