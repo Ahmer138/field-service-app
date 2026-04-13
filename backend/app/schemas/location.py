@@ -22,3 +22,8 @@ class TechnicianLocationRead(BaseModel):
     accuracy_meters: float | None
     recorded_at: datetime
     created_at: datetime
+
+
+class TechnicianLocationLatestRead(TechnicianLocationRead):
+    technician_name: str
+    is_stale: bool

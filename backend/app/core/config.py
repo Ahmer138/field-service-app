@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     MINIO_BUCKET_NAME: str = "job-update-photos"
     MINIO_SECURE: bool = False
 
+    # A technician is considered "stale" for manager views if no location ping arrives
+    # within this many minutes.
+    LOCATION_STALE_AFTER_MINUTES: int = 5
+
 
 settings = Settings()
 

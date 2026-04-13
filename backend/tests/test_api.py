@@ -403,6 +403,8 @@ def test_manager_can_list_latest_location_per_technician(client, session_factory
     assert len(payload) == 2
     assert payload[0]["technician_id"] == tech_one.id
     assert payload[0]["latitude"] == 25.2
+    assert payload[0]["technician_name"] == "Tech Location One"
+    assert payload[0]["is_stale"] is False
     assert payload[1]["technician_id"] == tech_two.id
     assert payload[1]["latitude"] == 24.9
 
@@ -443,6 +445,103 @@ def test_location_endpoints_enforce_roles(client, session_factory):
     )
     assert technician_latest_response.status_code == 403
     assert technician_latest_response.json()["detail"] == "Insufficient permissions"
+
+
+def test_manager_can_fetch_location_history_with_latest_first(client, session_factory):
+    create_user(
+        session_factory,
+        email="manager-location-history@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Location History",
+    )
+    technician = create_user(
+        session_factory,
+        email="tech-location-history@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Location History",
+    )
+
+    manager_headers = login(client, email="manager-location-history@example.com", password="secret123")
+    technician_headers = login(client, email="tech-location-history@example.com", password="secret123")
+
+    first_time = datetime.now(timezone.utc) - timedelta(minutes=15)
+    second_time = datetime.now(timezone.utc) - timedelta(minutes=5)
+
+    first_response = client.post(
+        "/locations/me",
+        headers=technician_headers,
+        json={
+            "latitude": 25.3,
+            "longitude": 55.3,
+            "recorded_at": first_time.isoformat(),
+        },
+    )
+    assert first_response.status_code == 201
+
+    second_response = client.post(
+        "/locations/me",
+        headers=technician_headers,
+        json={
+            "latitude": 25.4,
+            "longitude": 55.4,
+            "recorded_at": second_time.isoformat(),
+        },
+    )
+    assert second_response.status_code == 201
+
+    history_response = client.get(
+        f"/locations/technicians/{technician.id}/history?limit=1",
+        headers=manager_headers,
+    )
+
+    assert history_response.status_code == 200
+    payload = history_response.json()
+    assert len(payload) == 1
+    assert payload[0]["latitude"] == 25.4
+    assert payload[0]["longitude"] == 55.4
+
+
+def test_latest_location_can_be_marked_stale(client, session_factory):
+    create_user(
+        session_factory,
+        email="manager-location-stale@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Location Stale",
+    )
+    technician = create_user(
+        session_factory,
+        email="tech-location-stale@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Location Stale",
+    )
+
+    manager_headers = login(client, email="manager-location-stale@example.com", password="secret123")
+    technician_headers = login(client, email="tech-location-stale@example.com", password="secret123")
+
+    stale_time = datetime.now(timezone.utc) - timedelta(minutes=10)
+    ping_response = client.post(
+        "/locations/me",
+        headers=technician_headers,
+        json={
+            "latitude": 25.5,
+            "longitude": 55.5,
+            "recorded_at": stale_time.isoformat(),
+        },
+    )
+    assert ping_response.status_code == 201
+
+    latest_response = client.get(
+        f"/locations/technicians/{technician.id}/latest",
+        headers=manager_headers,
+    )
+
+    assert latest_response.status_code == 200
+    assert latest_response.json()["technician_name"] == "Tech Location Stale"
+    assert latest_response.json()["is_stale"] is True
 
 def test_job_workflow_rejects_invalid_check_in_and_check_out_sequences(client, session_factory):
     manager = create_user(
