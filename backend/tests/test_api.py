@@ -126,6 +126,59 @@ def test_create_user_rejects_duplicate_technician_code(client, session_factory):
     assert response.json()["detail"] == "Technician code already exists"
 
 
+def test_create_user_requires_technician_code_for_technicians(client, session_factory):
+    create_user(
+        session_factory,
+        email="manager-valid@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Valid",
+    )
+    manager_headers = login(client, email="manager-valid@example.com", password="secret123")
+
+    response = client.post(
+        "/users",
+        headers=manager_headers,
+        json={
+            "email": "missing-code-tech@example.com",
+            "password": "secret123",
+            "role": "technician",
+            "full_name": "Missing Code Tech",
+            "is_active": True,
+        },
+    )
+
+    assert response.status_code == 422
+    assert "Technician code is required for technicians" in response.text
+
+
+def test_create_user_rejects_technician_code_for_non_technicians(client, session_factory):
+    create_user(
+        session_factory,
+        email="manager-valid-2@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Valid Two",
+    )
+    manager_headers = login(client, email="manager-valid-2@example.com", password="secret123")
+
+    response = client.post(
+        "/users",
+        headers=manager_headers,
+        json={
+            "email": "manager-with-code@example.com",
+            "password": "secret123",
+            "role": "manager",
+            "technician_code": "INVALID-MANAGER-CODE",
+            "full_name": "Manager With Code",
+            "is_active": True,
+        },
+    )
+
+    assert response.status_code == 422
+    assert "Technician code is only allowed for technicians" in response.text
+
+
 def test_assigned_technician_can_complete_job_workflow(client, session_factory):
     manager = create_user(
         session_factory,
@@ -259,6 +312,82 @@ def test_inactive_user_token_is_rejected(client, session_factory):
 
     assert response.status_code == 403
     assert response.json()["detail"] == "User is inactive"
+
+
+def test_technician_cannot_create_users_or_jobs(client, session_factory):
+    create_user(
+        session_factory,
+        email="tech-authz@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Authz",
+    )
+    technician_headers = login(client, email="tech-authz@example.com", password="secret123")
+
+    create_user_response = client.post(
+        "/users",
+        headers=technician_headers,
+        json={
+            "email": "blocked-user@example.com",
+            "password": "secret123",
+            "role": "technician",
+            "technician_code": "BLOCKED-001",
+            "full_name": "Blocked User",
+            "is_active": True,
+        },
+    )
+    assert create_user_response.status_code == 403
+    assert create_user_response.json()["detail"] == "Insufficient permissions"
+
+    create_job_response = client.post(
+        "/jobs",
+        headers=technician_headers,
+        json={
+            "title": "Blocked job",
+            "address_line1": "999 Access Rd",
+            "city": "Dubai",
+            "state": "Dubai",
+            "postal_code": "00006",
+            "country": "UAE",
+        },
+    )
+    assert create_job_response.status_code == 403
+    assert create_job_response.json()["detail"] == "Insufficient permissions"
+
+
+def test_manager_cannot_check_in_or_out_of_job(client, session_factory):
+    manager = create_user(
+        session_factory,
+        email="manager-role@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Role",
+    )
+
+    with session_factory() as db:
+        job = Job(
+            title="Manager cannot check in",
+            address_line1="700 Policy Ln",
+            city="Dubai",
+            state="Dubai",
+            postal_code="00007",
+            country="UAE",
+            created_by_id=manager.id,
+        )
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+        job_id = job.id
+
+    manager_headers = login(client, email="manager-role@example.com", password="secret123")
+
+    check_in_response = client.post(f"/jobs/{job_id}/check-in", headers=manager_headers)
+    assert check_in_response.status_code == 403
+    assert check_in_response.json()["detail"] == "Technician role required"
+
+    check_out_response = client.post(f"/jobs/{job_id}/check-out", headers=manager_headers)
+    assert check_out_response.status_code == 403
+    assert check_out_response.json()["detail"] == "Technician role required"
 
 
 def test_job_update_photo_upload_and_download(client, session_factory, monkeypatch):
