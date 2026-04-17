@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .deps import get_current_user, require_manager_or_admin, require_technician
@@ -13,6 +13,8 @@ from ..models import TechnicianLocation, User
 from ..models.user import UserRole
 from ..schemas.location import (
     TechnicianLocationCreate,
+    TechnicianLocationHistoryResponse,
+    TechnicianLocationLatestListResponse,
     TechnicianLocationLatestRead,
     TechnicianLocationRead,
 )
@@ -98,13 +100,18 @@ def get_latest_technician_location(
 
 @router.get(
     "/technicians/latest",
-    response_model=list[TechnicianLocationLatestRead],
+    response_model=TechnicianLocationLatestListResponse,
     summary="List Latest Technician Locations",
-    description="Manager/admin endpoint returning the latest location per technician, with stale filtering and name search.",
+    description=(
+        "Manager/admin endpoint returning the latest location per technician, "
+        "with stale filtering, name search, and pagination. Returns a paginated response envelope."
+    ),
 )
 def list_latest_technician_locations(
     include_stale: bool = Query(True),
     q: str | None = Query(default=None, min_length=1),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
     _: User = Depends(require_manager_or_admin),
 ):
@@ -140,17 +147,27 @@ def list_latest_technician_locations(
         ]
 
     latest_locations.sort(key=lambda location: location.recorded_at, reverse=True)
-    return latest_locations
+    total = len(latest_locations)
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "items": latest_locations[offset : offset + limit],
+    }
 
 
 @router.get(
     "/technicians/{technician_id}/history",
-    response_model=list[TechnicianLocationRead],
+    response_model=TechnicianLocationHistoryResponse,
     summary="Get Technician Location History",
-    description="Manager/admin endpoint for filtered location history of a technician.",
+    description=(
+        "Manager/admin endpoint for filtered location history of a technician. "
+        "Returns a paginated response envelope."
+    ),
 )
 def get_technician_location_history(
     technician_id: int,
+    offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=500),
     recorded_from: datetime | None = Query(default=None),
     recorded_to: datetime | None = Query(default=None),
@@ -167,6 +184,15 @@ def get_technician_location_history(
     if recorded_to is not None:
         stmt = stmt.where(TechnicianLocation.recorded_at <= recorded_to)
 
-    return db.scalars(
-        stmt.order_by(TechnicianLocation.recorded_at.desc(), TechnicianLocation.id.desc()).limit(limit)
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    items = db.scalars(
+        stmt.order_by(TechnicianLocation.recorded_at.desc(), TechnicianLocation.id.desc())
+        .offset(offset)
+        .limit(limit)
     ).all()
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "items": items,
+    }

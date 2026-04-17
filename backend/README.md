@@ -80,6 +80,24 @@ Run the automated suite:
 .\.venv\Scripts\python -m pytest -q
 ```
 
+## CI
+
+The repo now includes a GitHub Actions workflow at `.github/workflows/backend-ci.yml`.
+It installs the backend dependencies and runs `pytest -q` on push and pull request updates.
+
+## Pagination
+
+Manager-facing list endpoints return a paginated envelope:
+
+```json
+{
+  "total": 125,
+  "offset": 0,
+  "limit": 50,
+  "items": []
+}
+```
+
 ## Logging
 
 The API emits structured JSON request logs and includes an `X-Request-ID` response header for traceability.
@@ -116,6 +134,8 @@ Supported user filters:
 - `role`
 - `is_active`
 - `q`
+- `offset`
+- `limit`
 
 ### Jobs
 
@@ -145,6 +165,8 @@ Supported job filters:
 - `scheduled_start_from`
 - `scheduled_start_to`
 - `q`
+- `offset`
+- `limit`
 
 ### Locations
 
@@ -157,9 +179,12 @@ Supported location list filters:
 
 - `include_stale`
 - `q`
+- `offset`
+- `limit`
 
 Supported location history filters:
 
+- `offset`
 - `limit`
 - `recorded_from`
 - `recorded_to`
@@ -175,6 +200,8 @@ Supported presence filters:
 
 - `include_offline`
 - `q`
+- `offset`
+- `limit`
 
 ## Health Checks
 

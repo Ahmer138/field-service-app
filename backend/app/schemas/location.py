@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 from .datetime_utils import normalize_for_display
+from .pagination import PaginatedResponse
 
 
 class TechnicianLocationCreate(BaseModel):
@@ -44,3 +45,11 @@ class TechnicianLocationRead(BaseModel):
 class TechnicianLocationLatestRead(TechnicianLocationRead):
     technician_name: str
     is_stale: bool
+
+
+class TechnicianLocationLatestListResponse(PaginatedResponse[TechnicianLocationLatestRead]):
+    pass
+
+
+class TechnicianLocationHistoryResponse(PaginatedResponse[TechnicianLocationRead]):
+    pass

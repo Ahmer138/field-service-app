@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .deps import get_current_user, require_manager_or_admin, require_technician
@@ -18,6 +18,7 @@ from app.schemas.job import (
     JobAssignmentRead,
     JobCreate,
     JobEventRead,
+    JobListResponse,
     JobRead,
     JobUpdate,
     JobUpdateCreate,
@@ -97,9 +98,13 @@ def create_job(
 
 @router.get(
     "",
-    response_model=list[JobRead],
+    response_model=JobListResponse,
     summary="List Jobs",
-    description="List jobs with role-aware access and optional manager filters for status, priority, creator, technician, city, date range, and search text.",
+    description=(
+        "List jobs with role-aware access and optional manager filters for status, "
+        "priority, creator, technician, city, date range, and search text. "
+        "Returns a paginated response envelope."
+    ),
 )
 def list_jobs(
     status_filter: JobStatus | None = Query(default=None, alias="status"),
@@ -153,10 +158,17 @@ def list_jobs(
             )
         )
 
+    filtered_stmt = stmt.distinct()
+    total = db.scalar(select(func.count()).select_from(filtered_stmt.order_by(None).subquery())) or 0
     jobs = db.scalars(
-        stmt.distinct().order_by(Job.created_at.desc()).offset(offset).limit(limit)
+        filtered_stmt.order_by(Job.created_at.desc()).offset(offset).limit(limit)
     ).all()
-    return jobs
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "items": jobs,
+    }
 
 
 @router.get("/{job_id}", response_model=JobRead)

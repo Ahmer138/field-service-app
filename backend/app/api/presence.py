@@ -12,7 +12,7 @@ from ..db import get_db
 from ..models import TechnicianLocation, TechnicianPresence, User
 from ..models.user import UserRole
 from ..schemas.location import TechnicianLocationRead
-from ..schemas.presence import TechnicianPresenceRead
+from ..schemas.presence import TechnicianPresenceListResponse, TechnicianPresenceRead
 
 router = APIRouter(prefix="/presence", tags=["presence"])
 
@@ -157,13 +157,18 @@ def get_technician_presence(
 
 @router.get(
     "/technicians",
-    response_model=list[TechnicianPresenceRead],
+    response_model=TechnicianPresenceListResponse,
     summary="List Technician Presence",
-    description="Manager/admin endpoint listing technician presence with optional offline filtering and name search.",
+    description=(
+        "Manager/admin endpoint listing technician presence with optional offline "
+        "filtering, name search, and pagination. Returns a paginated response envelope."
+    ),
 )
 def list_technician_presence(
     include_offline: bool = Query(True),
     q: str | None = Query(default=None, min_length=1),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
     _: User = Depends(require_manager_or_admin),
 ):
@@ -200,4 +205,10 @@ def list_technician_presence(
         ]
 
     payload.sort(key=lambda presence: (presence.is_online, presence.last_seen_at), reverse=True)
-    return payload
+    total = len(payload)
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "items": payload[offset : offset + limit],
+    }

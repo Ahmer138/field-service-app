@@ -135,8 +135,11 @@ def test_manager_can_filter_and_search_users(client, session_factory):
 
     assert response.status_code == 200
     payload = response.json()
-    assert len(payload) == 1
-    assert payload[0]["email"] == "active-tech@example.com"
+    assert payload["total"] == 1
+    assert payload["offset"] == 0
+    assert payload["limit"] == 50
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["email"] == "active-tech@example.com"
 
 
 def test_cors_allows_configured_frontend_origin(client):
@@ -309,8 +312,10 @@ def test_assigned_technician_can_complete_job_workflow(client, session_factory):
 
     jobs_response = client.get("/jobs", headers=technician_headers)
     assert jobs_response.status_code == 200
-    assert len(jobs_response.json()) == 1
-    assert jobs_response.json()[0]["id"] == job_id
+    jobs_payload = jobs_response.json()
+    assert jobs_payload["total"] == 1
+    assert len(jobs_payload["items"]) == 1
+    assert jobs_payload["items"][0]["id"] == job_id
 
     check_in_response = client.post(f"/jobs/{job_id}/check-in", headers=technician_headers)
     assert check_in_response.status_code == 201
@@ -392,8 +397,9 @@ def test_job_list_supports_manager_filters_and_search(client, session_factory):
 
     assert response.status_code == 200
     payload = response.json()
-    assert len(payload) == 1
-    assert payload[0]["title"] == "Emergency compressor repair"
+    assert payload["total"] == 1
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["title"] == "Emergency compressor repair"
 
 
 def test_job_list_supports_creator_and_schedule_range_filters(client, session_factory):
@@ -467,8 +473,9 @@ def test_job_list_supports_creator_and_schedule_range_filters(client, session_fa
 
     assert response.status_code == 200
     payload = response.json()
-    assert len(payload) == 1
-    assert payload[0]["title"] == "Scheduled maintenance in range"
+    assert payload["total"] == 1
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["title"] == "Scheduled maintenance in range"
 
 
 def test_manager_can_remove_assignment_and_revoke_access(client, session_factory):
@@ -632,13 +639,29 @@ def test_manager_can_list_latest_location_per_technician(client, session_factory
 
     assert response.status_code == 200
     payload = response.json()
-    assert len(payload) == 2
-    assert payload[0]["technician_id"] == tech_two.id
-    assert payload[0]["latitude"] == 24.9
-    assert payload[1]["technician_id"] == tech_one.id
-    assert payload[1]["latitude"] == 25.2
-    assert payload[1]["technician_name"] == "Tech Location One"
-    assert payload[1]["is_stale"] is False
+    assert payload["total"] == 2
+    assert payload["offset"] == 0
+    assert payload["limit"] == 50
+    assert len(payload["items"]) == 2
+    assert payload["items"][0]["technician_id"] == tech_two.id
+    assert payload["items"][0]["latitude"] == 24.9
+    assert payload["items"][1]["technician_id"] == tech_one.id
+    assert payload["items"][1]["latitude"] == 25.2
+    assert payload["items"][1]["technician_name"] == "Tech Location One"
+    assert payload["items"][1]["is_stale"] is False
+
+    paginated_response = client.get(
+        "/locations/technicians/latest?offset=1&limit=1",
+        headers=manager_headers,
+    )
+
+    assert paginated_response.status_code == 200
+    paginated_payload = paginated_response.json()
+    assert paginated_payload["total"] == 2
+    assert paginated_payload["offset"] == 1
+    assert paginated_payload["limit"] == 1
+    assert len(paginated_payload["items"]) == 1
+    assert paginated_payload["items"][0]["technician_id"] == tech_one.id
 
 
 def test_location_endpoints_enforce_roles(client, session_factory):
@@ -730,9 +753,12 @@ def test_manager_can_fetch_location_history_with_latest_first(client, session_fa
 
     assert history_response.status_code == 200
     payload = history_response.json()
-    assert len(payload) == 1
-    assert payload[0]["latitude"] == 25.4
-    assert payload[0]["longitude"] == 55.4
+    assert payload["total"] == 2
+    assert payload["offset"] == 0
+    assert payload["limit"] == 1
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["latitude"] == 25.4
+    assert payload["items"][0]["longitude"] == 55.4
 
     filtered_history_response = client.get(
         f"/locations/technicians/{technician.id}/history",
@@ -744,8 +770,9 @@ def test_manager_can_fetch_location_history_with_latest_first(client, session_fa
     )
     assert filtered_history_response.status_code == 200
     filtered_payload = filtered_history_response.json()
-    assert len(filtered_payload) == 1
-    assert filtered_payload[0]["latitude"] == 25.4
+    assert filtered_payload["total"] == 1
+    assert len(filtered_payload["items"]) == 1
+    assert filtered_payload["items"][0]["latitude"] == 25.4
 
 
 def test_latest_location_can_be_marked_stale(client, session_factory):
@@ -847,9 +874,10 @@ def test_latest_location_list_can_exclude_stale_technicians(client, session_fact
 
     assert response.status_code == 200
     payload = response.json()
-    assert len(payload) == 1
-    assert payload[0]["technician_id"] == fresh_technician.id
-    assert payload[0]["is_stale"] is False
+    assert payload["total"] == 1
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["technician_id"] == fresh_technician.id
+    assert payload["items"][0]["is_stale"] is False
 
     search_response = client.get(
         "/locations/technicians/latest?q=Filter New",
@@ -857,8 +885,9 @@ def test_latest_location_list_can_exclude_stale_technicians(client, session_fact
     )
     assert search_response.status_code == 200
     search_payload = search_response.json()
-    assert len(search_payload) == 1
-    assert search_payload[0]["technician_id"] == fresh_technician.id
+    assert search_payload["total"] == 1
+    assert len(search_payload["items"]) == 1
+    assert search_payload["items"][0]["technician_id"] == fresh_technician.id
 
 
 def test_technician_presence_heartbeat_and_manager_view(client, session_factory):
@@ -977,11 +1006,14 @@ def test_manager_can_list_presence_and_filter_offline(client, session_factory):
     all_response = client.get("/presence/technicians", headers=manager_headers)
     assert all_response.status_code == 200
     all_payload = all_response.json()
-    assert len(all_payload) == 2
-    assert all_payload[0]["technician_id"] == online_technician.id
-    assert all_payload[0]["is_online"] is True
-    assert all_payload[1]["technician_id"] == offline_technician.id
-    assert all_payload[1]["is_online"] is False
+    assert all_payload["total"] == 2
+    assert all_payload["offset"] == 0
+    assert all_payload["limit"] == 50
+    assert len(all_payload["items"]) == 2
+    assert all_payload["items"][0]["technician_id"] == online_technician.id
+    assert all_payload["items"][0]["is_online"] is True
+    assert all_payload["items"][1]["technician_id"] == offline_technician.id
+    assert all_payload["items"][1]["is_online"] is False
 
     online_only_response = client.get(
         "/presence/technicians?include_offline=false",
@@ -989,8 +1021,9 @@ def test_manager_can_list_presence_and_filter_offline(client, session_factory):
     )
     assert online_only_response.status_code == 200
     online_only_payload = online_only_response.json()
-    assert len(online_only_payload) == 1
-    assert online_only_payload[0]["technician_id"] == online_technician.id
+    assert online_only_payload["total"] == 1
+    assert len(online_only_payload["items"]) == 1
+    assert online_only_payload["items"][0]["technician_id"] == online_technician.id
 
     search_response = client.get(
         "/presence/technicians?q=Presence Online",
@@ -998,8 +1031,21 @@ def test_manager_can_list_presence_and_filter_offline(client, session_factory):
     )
     assert search_response.status_code == 200
     search_payload = search_response.json()
-    assert len(search_payload) == 1
-    assert search_payload[0]["technician_id"] == online_technician.id
+    assert search_payload["total"] == 1
+    assert len(search_payload["items"]) == 1
+    assert search_payload["items"][0]["technician_id"] == online_technician.id
+
+    paginated_response = client.get(
+        "/presence/technicians?offset=1&limit=1",
+        headers=manager_headers,
+    )
+    assert paginated_response.status_code == 200
+    paginated_payload = paginated_response.json()
+    assert paginated_payload["total"] == 2
+    assert paginated_payload["offset"] == 1
+    assert paginated_payload["limit"] == 1
+    assert len(paginated_payload["items"]) == 1
+    assert paginated_payload["items"][0]["technician_id"] == offline_technician.id
 
 
 def test_presence_endpoints_enforce_roles(client, session_factory):

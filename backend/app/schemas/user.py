@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, field_serializer, field_va
 
 from ..models.user import UserRole
 from .datetime_utils import normalize_for_display
+from .pagination import PaginatedResponse
 
 
 class UserCreate(BaseModel):
@@ -70,3 +71,7 @@ class UserRead(BaseModel):
     @field_serializer("created_at", "updated_at")
     def serialize_datetime(self, value: datetime) -> datetime:
         return normalize_for_display(value)
+
+
+class UserListResponse(PaginatedResponse[UserRead]):
+    pass

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .deps import get_current_user, require_manager_or_admin
@@ -9,7 +9,7 @@ from ..core.security import get_password_hash
 from ..db import get_db
 from ..models import User
 from ..models.user import UserRole
-from app.schemas.user import UserCreate, UserRead
+from app.schemas.user import UserCreate, UserListResponse, UserRead
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -56,9 +56,12 @@ def create_user(
 
 @router.get(
     "",
-    response_model=list[UserRead],
+    response_model=UserListResponse,
     summary="List Users",
-    description="List users with optional role, active-state, and free-text filtering.",
+    description=(
+        "List users with optional role, active-state, and free-text filtering. "
+        "Returns a paginated response envelope."
+    ),
 )
 def list_users(
     role: UserRole | None = Query(default=None),
@@ -69,7 +72,7 @@ def list_users(
     db: Session = Depends(get_db),
     _: User = Depends(require_manager_or_admin),
 ):
-    stmt = select(User).order_by(User.created_at.desc())
+    stmt = select(User)
     if role is not None:
         stmt = stmt.where(User.role == role)
     if is_active is not None:
@@ -84,8 +87,14 @@ def list_users(
             )
         )
 
-    users = db.scalars(stmt.offset(offset).limit(limit)).all()
-    return users
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    users = db.scalars(stmt.order_by(User.created_at.desc()).offset(offset).limit(limit)).all()
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "items": users,
+    }
 
 
 @router.get(

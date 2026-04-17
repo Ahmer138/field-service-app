@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, field_serializer
 
 from .datetime_utils import normalize_for_display
 from .location import TechnicianLocationRead
+from .pagination import PaginatedResponse
 
 
 class TechnicianPresenceRead(BaseModel):
@@ -22,3 +23,7 @@ class TechnicianPresenceRead(BaseModel):
     @field_serializer("session_started_at", "last_seen_at")
     def serialize_datetime(self, value: datetime) -> datetime:
         return normalize_for_display(value)
+
+
+class TechnicianPresenceListResponse(PaginatedResponse[TechnicianPresenceRead]):
+    pass

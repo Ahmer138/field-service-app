@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from ..models.job_event import JobEventType
 from ..models.job import JobPriority, JobStatus
 from .datetime_utils import normalize_for_display
+from .pagination import PaginatedResponse
 
 
 class JobCreate(BaseModel):
@@ -179,3 +180,7 @@ class JobUpdatePhotoDownload(BaseModel):
     file_key: str
     download_url: str
     expires_in_seconds: int
+
+
+class JobListResponse(PaginatedResponse[JobRead]):
+    pass
