@@ -34,6 +34,10 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
+    token_revoked_before: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     assignments = relationship("JobAssignment", back_populates="technician", foreign_keys="JobAssignment.technician_id")
     created_jobs = relationship("Job", back_populates="created_by")

@@ -83,6 +83,24 @@ AUTH_ERROR_RESPONSES = merge_responses(
 )
 
 
+AUTH_LOGOUT_ERROR_RESPONSES = merge_responses(
+    build_error_response(
+        status.HTTP_401_UNAUTHORIZED,
+        "Authentication is required or the current token was already revoked.",
+        "Invalid authentication credentials",
+        code="unauthorized",
+        path="/auth/logout",
+    ),
+    build_error_response(
+        status.HTTP_403_FORBIDDEN,
+        "Authenticated user is inactive.",
+        "User is inactive",
+        code="forbidden",
+        path="/auth/logout",
+    ),
+)
+
+
 USERS_ERROR_RESPONSES = merge_responses(
     build_error_response(
         status.HTTP_401_UNAUTHORIZED,

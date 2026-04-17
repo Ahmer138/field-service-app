@@ -8,7 +8,7 @@ It describes the current authentication, session, GPS, presence, pagination, and
 - Authentication uses a JWT bearer access token.
 - The backend currently issues only an access token.
 - There is no refresh token flow yet.
-- There is no token revocation or server-side session invalidation yet.
+- `POST /auth/logout` revokes all tokens previously issued for that user up to the logout time.
 - Inactive users are blocked at login and on authenticated requests.
 
 Current token settings:
@@ -76,9 +76,9 @@ Recommended client behavior:
 
 Important current limitation:
 
-- `POST /presence/me/logout` marks technician presence as logged out, but it does not revoke the JWT.
-- A client logout should clear the stored token locally.
-- Real token revocation remains a separate backend completion item.
+- There is still no refresh token flow yet.
+- Logout is currently implemented as a revoke-before timestamp on the user, so previously issued tokens for that user stop working after logout.
+- A client logout should still clear the stored token locally.
 
 ## Recommended Session Flows
 
@@ -88,7 +88,8 @@ Important current limitation:
 2. Save the returned access token.
 3. Immediately call `GET /users/me`.
 4. Use the access token on all subsequent requests.
-5. On `401`, clear local session state and redirect to login.
+5. On explicit logout, call `POST /auth/logout` and then clear local session state.
+6. On `401`, clear local session state and redirect to login.
 
 ### Mobile Technician
 
@@ -96,15 +97,16 @@ Important current limitation:
 2. Save the returned access token in secure storage.
 3. Call `GET /users/me` and confirm the user role is `technician`.
 4. Start presence heartbeat and GPS reporting only while the technician is logged into the app.
-5. On technician logout, call `POST /presence/me/logout` and then clear the local token.
+5. On technician logout, call `POST /auth/logout` and then clear the local token.
 6. On `401`, stop heartbeat and GPS reporting and force re-login.
 
 ## Technician Presence Contract
 
-Technician session presence is tracked separately from JWT issuance.
+Technician session presence is tracked separately from JWT issuance, but auth logout now also drives presence logout for technicians.
 
 Endpoints:
 
+- `POST /auth/logout`
 - `POST /presence/me/heartbeat`
 - `POST /presence/me/logout`
 
@@ -114,7 +116,8 @@ Current behavior:
 - Heartbeat sets `is_logged_in=true`.
 - If the technician was previously logged out, heartbeat resets `session_started_at`.
 - Heartbeat always updates `last_seen_at`.
-- Logout sets `is_logged_in=false` and updates `last_seen_at`.
+- `POST /presence/me/logout` sets `is_logged_in=false` and updates `last_seen_at`.
+- `POST /auth/logout` revokes the current authenticated session and also marks technician presence logged out.
 
 Manager/admin visibility:
 
@@ -282,9 +285,7 @@ If the frontend host changes, update backend configuration before testing in bro
 
 These are not solved by the current auth/session flow:
 
-- refresh token strategy
-- token revocation or device/session invalidation
-- long-term retention policy for location, presence, and photos
+- device-specific session management beyond the current user-wide logout cutoff
 - production secrets management outside local `.env`
 - monitoring, alerting, and centralized logs
 - backup and recovery posture

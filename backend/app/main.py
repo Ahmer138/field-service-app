@@ -43,7 +43,7 @@ app = FastAPI(
         "technician location tracking, and mobile presence monitoring."
     ),
     openapi_tags=[
-        {"name": "auth", "description": "Authentication and token issuance."},
+        {"name": "auth", "description": "Authentication, token issuance, and session revocation."},
         {"name": "users", "description": "Manager/admin user management and current-user lookup."},
         {"name": "jobs", "description": "Job lifecycle, assignments, updates, events, and photos."},
         {"name": "locations", "description": "Technician GPS location ping, latest location, and history."},

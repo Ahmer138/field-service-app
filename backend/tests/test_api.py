@@ -195,6 +195,10 @@ def test_openapi_includes_paginated_and_error_examples(client):
     rate_limited_example = auth_post_responses["429"]["content"]["application/json"]["example"]
     assert rate_limited_example["error"]["code"] == "rate_limited"
 
+    auth_logout_responses = payload["paths"]["/auth/logout"]["post"]["responses"]
+    logout_unauthorized_example = auth_logout_responses["401"]["content"]["application/json"]["example"]
+    assert logout_unauthorized_example["path"] == "/auth/logout"
+
 
 def test_http_errors_use_standard_error_envelope(client, session_factory):
     create_user(
@@ -300,6 +304,67 @@ def test_presence_heartbeat_rate_limit_is_scoped_per_user(client, session_factor
 
     other_user_response = client.post("/presence/me/heartbeat", headers=tech_two_headers)
     assert other_user_response.status_code == 201
+
+
+def test_auth_logout_revokes_current_token_and_allows_relogin(client, session_factory):
+    create_user(
+        session_factory,
+        email="manager-logout@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Logout",
+    )
+    headers = login(client, email="manager-logout@example.com", password="secret123")
+
+    logout_response = client.post("/auth/logout", headers=headers)
+    assert logout_response.status_code == 204
+
+    revoked_response = client.get("/users/me", headers=headers)
+    assert revoked_response.status_code == 401
+    assert revoked_response.json()["detail"] == "Session has been revoked"
+
+    new_headers = login(client, email="manager-logout@example.com", password="secret123")
+    new_session_response = client.get("/users/me", headers=new_headers)
+    assert new_session_response.status_code == 200
+    assert new_session_response.json()["email"] == "manager-logout@example.com"
+
+
+def test_auth_logout_marks_technician_presence_offline(client, session_factory):
+    create_user(
+        session_factory,
+        email="manager-auth-logout-presence@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Auth Logout Presence",
+    )
+    technician = create_user(
+        session_factory,
+        email="tech-auth-logout-presence@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Auth Logout Presence",
+    )
+
+    manager_headers = login(client, email="manager-auth-logout-presence@example.com", password="secret123")
+    technician_headers = login(client, email="tech-auth-logout-presence@example.com", password="secret123")
+
+    heartbeat_response = client.post("/presence/me/heartbeat", headers=technician_headers)
+    assert heartbeat_response.status_code == 201
+
+    logout_response = client.post("/auth/logout", headers=technician_headers)
+    assert logout_response.status_code == 204
+
+    revoked_response = client.post("/presence/me/heartbeat", headers=technician_headers)
+    assert revoked_response.status_code == 401
+    assert revoked_response.json()["detail"] == "Session has been revoked"
+
+    manager_view_response = client.get(
+        f"/presence/technicians/{technician.id}",
+        headers=manager_headers,
+    )
+    assert manager_view_response.status_code == 200
+    assert manager_view_response.json()["is_logged_in"] is False
+    assert manager_view_response.json()["is_online"] is False
 
 
 def test_validation_errors_use_standard_error_envelope(client, session_factory):

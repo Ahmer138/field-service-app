@@ -107,6 +107,7 @@ The local Alembic command requires PostgreSQL to be available and reachable from
 Frontend and mobile teams should use [CLIENT_AUTH_SESSION_GUIDE.md](CLIENT_AUTH_SESSION_GUIDE.md) as the current source of truth for:
 
 - login request format and bearer token usage
+- logout and token revocation behavior
 - web and mobile session behavior
 - technician heartbeat and GPS reporting expectations
 - paginated list envelopes and standardized error responses
@@ -238,6 +239,7 @@ Example request log fields:
 ### Auth
 
 - `POST /auth/login`
+- `POST /auth/logout`
 
 ### Users
 

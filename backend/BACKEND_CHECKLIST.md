@@ -36,7 +36,7 @@ This file tracks what is complete and what remains for the Field Service App bac
 
 ## Must-Have Before Production
 
-- [ ] refresh-token or token revocation strategy for mobile sessions
+- [x] refresh-token or token revocation strategy for mobile sessions
 - [ ] secrets management outside `.env`
 - [ ] monitoring, alerting, and log aggregation
 - [ ] backup and recovery posture for PostgreSQL and object storage
