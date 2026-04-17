@@ -102,6 +102,16 @@ For local developer checks:
 
 The local Alembic command requires PostgreSQL to be available and reachable from `DATABASE_URL`.
 
+## Client Handoff
+
+Frontend and mobile teams should use [CLIENT_AUTH_SESSION_GUIDE.md](CLIENT_AUTH_SESSION_GUIDE.md) as the current source of truth for:
+
+- login request format and bearer token usage
+- web and mobile session behavior
+- technician heartbeat and GPS reporting expectations
+- paginated list envelopes and standardized error responses
+- UAE (`Asia/Dubai`) timestamp handling in manager-facing responses
+
 ## Pagination
 
 Manager-facing list endpoints return a paginated envelope:
