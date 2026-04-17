@@ -31,6 +31,16 @@ class Settings(BaseSettings):
     LOCATION_STALE_AFTER_MINUTES: int = 5
     PRESENCE_ONLINE_AFTER_MINUTES: int = 2
     DISPLAY_TIMEZONE: str = "Asia/Dubai"
+    CORS_ALLOWED_ORIGINS: str = (
+        "http://localhost:3000,"
+        "http://127.0.0.1:3000,"
+        "http://localhost:5173,"
+        "http://127.0.0.1:5173"
+    )
+
+    @property
+    def cors_allowed_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.CORS_ALLOWED_ORIGINS.split(",") if origin.strip()]
 
 
 settings = Settings()

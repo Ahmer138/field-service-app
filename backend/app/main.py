@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -7,6 +8,7 @@ from app.api.jobs import router as jobs_router
 from app.api.locations import router as locations_router
 from app.api.presence import router as presence_router
 from app.api.users import router as users_router
+from app.core.config import settings
 from app.db import get_db
 from app.services import storage_service
 
@@ -26,6 +28,14 @@ app = FastAPI(
         {"name": "locations", "description": "Technician GPS location ping, latest location, and history."},
         {"name": "presence", "description": "Mobile session heartbeat, logout, and live presence views."},
     ],
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(auth_router)

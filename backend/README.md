@@ -38,6 +38,10 @@ Copy-Item .env.example .env
 ```
 
 4. Update any secrets in `.env`.
+   Important settings include:
+
+- `DISPLAY_TIMEZONE=Asia/Dubai`
+- `CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173`
 
 5. Start PostgreSQL and MinIO.
 
@@ -117,7 +121,10 @@ Supported job filters:
 - `status`
 - `priority`
 - `technician_id`
+- `created_by_id`
 - `city`
+- `scheduled_start_from`
+- `scheduled_start_to`
 - `q`
 
 ### Locations
@@ -131,6 +138,12 @@ Supported location list filters:
 
 - `include_stale`
 - `q`
+
+Supported location history filters:
+
+- `limit`
+- `recorded_from`
+- `recorded_to`
 
 ### Presence
 
@@ -159,3 +172,7 @@ This backend is now suitable for MVP integration, but production deployment stil
 - monitoring/log aggregation
 - backup and retention policies
 - CI/CD pipeline
+
+## Frontend Integration Note
+
+The API uses configurable CORS via `CORS_ALLOWED_ORIGINS`. Update that value for your web frontend domains before deployment.

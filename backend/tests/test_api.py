@@ -137,6 +137,19 @@ def test_manager_can_filter_and_search_users(client, session_factory):
     assert payload[0]["email"] == "active-tech@example.com"
 
 
+def test_cors_allows_configured_frontend_origin(client):
+    response = client.options(
+        "/health",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+
+
 def test_create_user_rejects_duplicate_technician_code(client, session_factory):
     create_user(
         session_factory,
