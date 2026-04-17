@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -7,7 +9,7 @@ from sqlalchemy.orm import Session
 from .deps import get_current_user, require_manager_or_admin, require_technician
 from ..db import get_db
 from ..models import Job, JobAssignment, JobEvent, JobUpdate as JobUpdateModel, JobUpdatePhoto, User
-from ..models.job import JobStatus
+from ..models.job import JobPriority, JobStatus
 from ..models.job_event import JobEventType
 from ..models.user import UserRole
 from ..services import storage_service
@@ -90,9 +92,12 @@ def create_job(
 @router.get("", response_model=list[JobRead])
 def list_jobs(
     status_filter: JobStatus | None = Query(default=None, alias="status"),
-    priority: str | None = Query(default=None),
+    priority: JobPriority | None = Query(default=None),
     technician_id: int | None = Query(default=None, ge=1),
+    created_by_id: int | None = Query(default=None, ge=1),
     city: str | None = Query(default=None),
+    scheduled_start_from: datetime | None = Query(default=None),
+    scheduled_start_to: datetime | None = Query(default=None),
     q: str | None = Query(default=None, min_length=1),
     offset: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
@@ -106,6 +111,8 @@ def list_jobs(
             stmt = stmt.join(JobAssignment, JobAssignment.job_id == Job.id).where(
                 JobAssignment.technician_id == technician_id
             )
+        if created_by_id is not None:
+            stmt = stmt.where(Job.created_by_id == created_by_id)
     else:
         stmt = stmt.join(JobAssignment, JobAssignment.job_id == Job.id).where(
             JobAssignment.technician_id == current_user.id
@@ -117,6 +124,10 @@ def list_jobs(
         stmt = stmt.where(Job.priority == priority)
     if city:
         stmt = stmt.where(Job.city.ilike(f"%{city.strip()}%"))
+    if scheduled_start_from is not None:
+        stmt = stmt.where(Job.scheduled_start.is_not(None), Job.scheduled_start >= scheduled_start_from)
+    if scheduled_start_to is not None:
+        stmt = stmt.where(Job.scheduled_start.is_not(None), Job.scheduled_start <= scheduled_start_to)
     if q:
         term = f"%{q.strip()}%"
         stmt = stmt.where(

@@ -137,6 +137,8 @@ def list_latest_technician_locations(
 def get_technician_location_history(
     technician_id: int,
     limit: int = Query(50, ge=1, le=500),
+    recorded_from: datetime | None = Query(default=None),
+    recorded_to: datetime | None = Query(default=None),
     db: Session = Depends(get_db),
     _: User = Depends(require_manager_or_admin),
 ):
@@ -144,9 +146,12 @@ def get_technician_location_history(
     if not technician or technician.role != UserRole.TECHNICIAN:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Technician not found")
 
+    stmt = select(TechnicianLocation).where(TechnicianLocation.technician_id == technician_id)
+    if recorded_from is not None:
+        stmt = stmt.where(TechnicianLocation.recorded_at >= recorded_from)
+    if recorded_to is not None:
+        stmt = stmt.where(TechnicianLocation.recorded_at <= recorded_to)
+
     return db.scalars(
-        select(TechnicianLocation)
-        .where(TechnicianLocation.technician_id == technician_id)
-        .order_by(TechnicianLocation.recorded_at.desc(), TechnicianLocation.id.desc())
-        .limit(limit)
+        stmt.order_by(TechnicianLocation.recorded_at.desc(), TechnicianLocation.id.desc()).limit(limit)
     ).all()

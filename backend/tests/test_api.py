@@ -361,6 +361,81 @@ def test_job_list_supports_manager_filters_and_search(client, session_factory):
     assert payload[0]["title"] == "Emergency compressor repair"
 
 
+def test_job_list_supports_creator_and_schedule_range_filters(client, session_factory):
+    manager_one = create_user(
+        session_factory,
+        email="manager-job-range-one@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Job Range One",
+    )
+    manager_two = create_user(
+        session_factory,
+        email="manager-job-range-two@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Job Range Two",
+    )
+
+    manager_one_headers = login(client, email="manager-job-range-one@example.com", password="secret123")
+
+    in_range_response = client.post(
+        "/jobs",
+        headers=manager_one_headers,
+        json={
+            "title": "Scheduled maintenance in range",
+            "address_line1": "500 Date Range Rd",
+            "city": "Dubai",
+            "state": "Dubai",
+            "postal_code": "20001",
+            "country": "UAE",
+            "scheduled_start": "2026-04-20T09:00:00+04:00",
+        },
+    )
+    assert in_range_response.status_code == 201
+
+    out_of_range_response = client.post(
+        "/jobs",
+        headers=manager_one_headers,
+        json={
+            "title": "Scheduled maintenance out of range",
+            "address_line1": "501 Date Range Rd",
+            "city": "Dubai",
+            "state": "Dubai",
+            "postal_code": "20002",
+            "country": "UAE",
+            "scheduled_start": "2026-05-01T09:00:00+04:00",
+        },
+    )
+    assert out_of_range_response.status_code == 201
+
+    manager_two_headers = login(client, email="manager-job-range-two@example.com", password="secret123")
+    other_creator_response = client.post(
+        "/jobs",
+        headers=manager_two_headers,
+        json={
+            "title": "Different creator job",
+            "address_line1": "777 Other Manager St",
+            "city": "Dubai",
+            "state": "Dubai",
+            "postal_code": "20003",
+            "country": "UAE",
+            "scheduled_start": "2026-04-21T09:00:00+04:00",
+        },
+    )
+    assert other_creator_response.status_code == 201
+
+    response = client.get(
+        f"/jobs?created_by_id={manager_one.id}&scheduled_start_from=2026-04-19T00:00:00%2B04:00&scheduled_start_to=2026-04-25T23:59:59%2B04:00",
+        headers=manager_one_headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["title"] == "Scheduled maintenance in range"
+
+
 def test_manager_can_remove_assignment_and_revoke_access(client, session_factory):
     manager = create_user(
         session_factory,
@@ -623,6 +698,19 @@ def test_manager_can_fetch_location_history_with_latest_first(client, session_fa
     assert len(payload) == 1
     assert payload[0]["latitude"] == 25.4
     assert payload[0]["longitude"] == 55.4
+
+    filtered_history_response = client.get(
+        f"/locations/technicians/{technician.id}/history",
+        headers=manager_headers,
+        params={
+            "recorded_from": second_time.isoformat(),
+            "recorded_to": second_time.isoformat(),
+        },
+    )
+    assert filtered_history_response.status_code == 200
+    filtered_payload = filtered_history_response.json()
+    assert len(filtered_payload) == 1
+    assert filtered_payload[0]["latitude"] == 25.4
 
 
 def test_latest_location_can_be_marked_stale(client, session_factory):
