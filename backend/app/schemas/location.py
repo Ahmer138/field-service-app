@@ -8,6 +8,17 @@ from .datetime_utils import normalize_for_display
 
 
 class TechnicianLocationCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "latitude": 25.2048,
+                "longitude": 55.2708,
+                "accuracy_meters": 12.5,
+                "recorded_at": "2026-04-20T08:15:00+04:00",
+            }
+        }
+    )
+
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
     accuracy_meters: float | None = Field(default=None, ge=0)

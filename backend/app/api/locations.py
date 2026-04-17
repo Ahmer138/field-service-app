@@ -45,7 +45,13 @@ def _serialize_latest_location(location: TechnicianLocation, technician: User) -
     )
 
 
-@router.post("/me", response_model=TechnicianLocationRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/me",
+    response_model=TechnicianLocationRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Send Technician Location Ping",
+    description="Technician endpoint for reporting the device GPS location while logged into the mobile app.",
+)
 def create_location_ping(
     payload: TechnicianLocationCreate,
     db: Session = Depends(get_db),
@@ -67,6 +73,8 @@ def create_location_ping(
 @router.get(
     "/technicians/{technician_id}/latest",
     response_model=TechnicianLocationLatestRead,
+    summary="Get Latest Technician Location",
+    description="Manager/admin endpoint for the latest known location of one technician.",
 )
 def get_latest_technician_location(
     technician_id: int,
@@ -88,7 +96,12 @@ def get_latest_technician_location(
     return _serialize_latest_location(location, technician)
 
 
-@router.get("/technicians/latest", response_model=list[TechnicianLocationLatestRead])
+@router.get(
+    "/technicians/latest",
+    response_model=list[TechnicianLocationLatestRead],
+    summary="List Latest Technician Locations",
+    description="Manager/admin endpoint returning the latest location per technician, with stale filtering and name search.",
+)
 def list_latest_technician_locations(
     include_stale: bool = Query(True),
     q: str | None = Query(default=None, min_length=1),
@@ -133,6 +146,8 @@ def list_latest_technician_locations(
 @router.get(
     "/technicians/{technician_id}/history",
     response_model=list[TechnicianLocationRead],
+    summary="Get Technician Location History",
+    description="Manager/admin endpoint for filtered location history of a technician.",
 )
 def get_technician_location_history(
     technician_id: int,

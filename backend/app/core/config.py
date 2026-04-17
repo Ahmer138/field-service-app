@@ -1,3 +1,5 @@
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +33,7 @@ class Settings(BaseSettings):
     LOCATION_STALE_AFTER_MINUTES: int = 5
     PRESENCE_ONLINE_AFTER_MINUTES: int = 2
     DISPLAY_TIMEZONE: str = "Asia/Dubai"
+    APP_ENV: str = "development"
     CORS_ALLOWED_ORIGINS: str = (
         "http://localhost:3000,"
         "http://127.0.0.1:3000,"
@@ -41,6 +44,27 @@ class Settings(BaseSettings):
     @property
     def cors_allowed_origins(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ALLOWED_ORIGINS.split(",") if origin.strip()]
+
+    def validate_runtime(self) -> None:
+        if self.ACCESS_TOKEN_EXPIRE_MINUTES <= 0:
+            raise RuntimeError("ACCESS_TOKEN_EXPIRE_MINUTES must be greater than 0")
+        if self.LOCATION_STALE_AFTER_MINUTES <= 0:
+            raise RuntimeError("LOCATION_STALE_AFTER_MINUTES must be greater than 0")
+        if self.PRESENCE_ONLINE_AFTER_MINUTES <= 0:
+            raise RuntimeError("PRESENCE_ONLINE_AFTER_MINUTES must be greater than 0")
+        if not self.cors_allowed_origins:
+            raise RuntimeError("CORS_ALLOWED_ORIGINS must include at least one origin")
+        try:
+            ZoneInfo(self.DISPLAY_TIMEZONE)
+        except ZoneInfoNotFoundError as exc:
+            raise RuntimeError(f"DISPLAY_TIMEZONE is invalid: {self.DISPLAY_TIMEZONE}") from exc
+
+        if self.APP_ENV.lower() in {"production", "staging"}:
+            insecure_values = {"CHANGE_ME", "CHANGE_ME_TO_A_LONG_RANDOM_STRING"}
+            if self.SECRET_KEY in insecure_values or len(self.SECRET_KEY) < 32:
+                raise RuntimeError(
+                    "SECRET_KEY must be replaced with a strong production secret in staging/production"
+                )
 
 
 settings = Settings()

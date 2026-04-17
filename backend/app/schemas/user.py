@@ -9,6 +9,28 @@ from .datetime_utils import normalize_for_display
 
 
 class UserCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "email": "tech1@example.com",
+                    "password": "secret123",
+                    "role": "technician",
+                    "technician_code": "DXB-101",
+                    "full_name": "Tech One",
+                    "is_active": True,
+                },
+                {
+                    "email": "manager@example.com",
+                    "password": "secret123",
+                    "role": "manager",
+                    "full_name": "Dispatch Manager",
+                    "is_active": True,
+                },
+            ]
+        }
+    )
+
     email: EmailStr
     password: str
     role: UserRole

@@ -69,7 +69,13 @@ def _serialize_presence(
     )
 
 
-@router.post("/me/heartbeat", response_model=TechnicianPresenceRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/me/heartbeat",
+    response_model=TechnicianPresenceRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Send Presence Heartbeat",
+    description="Technician endpoint that marks the mobile session as active and updates last-seen time.",
+)
 def heartbeat_presence(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_technician),
@@ -104,7 +110,12 @@ def heartbeat_presence(
     return _serialize_presence(presence, current_user, latest_location)
 
 
-@router.post("/me/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/me/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Log Out Technician Presence",
+    description="Technician endpoint that marks the mobile session as logged out.",
+)
 def logout_presence(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_technician),
@@ -119,7 +130,12 @@ def logout_presence(
         db.commit()
 
 
-@router.get("/technicians/{technician_id}", response_model=TechnicianPresenceRead)
+@router.get(
+    "/technicians/{technician_id}",
+    response_model=TechnicianPresenceRead,
+    summary="Get Technician Presence",
+    description="Manager/admin endpoint returning one technician's current session and online/offline presence state.",
+)
 def get_technician_presence(
     technician_id: int,
     db: Session = Depends(get_db),
@@ -139,7 +155,12 @@ def get_technician_presence(
     return _serialize_presence(presence, technician, latest_location)
 
 
-@router.get("/technicians", response_model=list[TechnicianPresenceRead])
+@router.get(
+    "/technicians",
+    response_model=list[TechnicianPresenceRead],
+    summary="List Technician Presence",
+    description="Manager/admin endpoint listing technician presence with optional offline filtering and name search.",
+)
 def list_technician_presence(
     include_offline: bool = Query(True),
     q: str | None = Query(default=None, min_length=1),

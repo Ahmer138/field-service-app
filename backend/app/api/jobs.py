@@ -61,7 +61,13 @@ def _ensure_job_update_access(
     return job_update
 
 
-@router.post("", response_model=JobRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=JobRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Job",
+    description="Create a new field service job. Manager/admin access required.",
+)
 def create_job(
     payload: JobCreate,
     db: Session = Depends(get_db),
@@ -89,7 +95,12 @@ def create_job(
     return job
 
 
-@router.get("", response_model=list[JobRead])
+@router.get(
+    "",
+    response_model=list[JobRead],
+    summary="List Jobs",
+    description="List jobs with role-aware access and optional manager filters for status, priority, creator, technician, city, date range, and search text.",
+)
 def list_jobs(
     status_filter: JobStatus | None = Query(default=None, alias="status"),
     priority: JobPriority | None = Query(default=None),
@@ -248,7 +259,13 @@ def remove_assignment(
     db.commit()
 
 
-@router.post("/{job_id}/check-in", response_model=JobEventRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{job_id}/check-in",
+    response_model=JobEventRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Check In To Job",
+    description="Technician check-in endpoint that moves a job into in-progress state when allowed.",
+)
 def check_in(
     job_id: int,
     db: Session = Depends(get_db),
@@ -277,7 +294,13 @@ def check_in(
     return event
 
 
-@router.post("/{job_id}/check-out", response_model=JobEventRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{job_id}/check-out",
+    response_model=JobEventRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Check Out Of Job",
+    description="Technician check-out endpoint that completes an in-progress job when allowed.",
+)
 def check_out(
     job_id: int,
     db: Session = Depends(get_db),

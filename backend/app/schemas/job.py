@@ -10,6 +10,26 @@ from .datetime_utils import normalize_for_display
 
 
 class JobCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "title": "Emergency compressor repair",
+                "description": "Customer reports no cooling in building A",
+                "technician_instructions": "Bring refrigerant gauges and replacement capacitor",
+                "internal_notes": "VIP site access requires manager notification",
+                "address_line1": "12 Marina Walk",
+                "address_line2": "Building A",
+                "city": "Dubai",
+                "state": "Dubai",
+                "postal_code": "10001",
+                "country": "UAE",
+                "scheduled_start": "2026-04-20T09:00:00+04:00",
+                "scheduled_end": "2026-04-20T11:00:00+04:00",
+                "priority": "urgent",
+            }
+        }
+    )
+
     title: str
     description: str | None = None
     technician_instructions: str | None = None
@@ -26,6 +46,18 @@ class JobCreate(BaseModel):
 
 
 class JobUpdate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "status": "in_progress",
+                "priority": "high",
+                "scheduled_start": "2026-04-21T10:00:00+04:00",
+                "scheduled_end": "2026-04-21T12:00:00+04:00",
+                "internal_notes": "Customer approved overtime if needed",
+            }
+        }
+    )
+
     title: str | None = None
     description: str | None = None
     technician_instructions: str | None = None
@@ -72,6 +104,8 @@ class JobRead(BaseModel):
 
 
 class JobAssignRequest(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"example": {"technician_id": 7}})
+
     technician_id: int
 
 
@@ -104,6 +138,10 @@ class JobEventRead(BaseModel):
 
 
 class JobUpdateCreate(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"message": "Technician arrived on site and started diagnostics"}}
+    )
+
     message: str
 
 

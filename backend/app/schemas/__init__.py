@@ -1,3 +1,4 @@
+from .auth import AuthTokenRead
 from .job import (
     JobAssignRequest,
     JobAssignmentRead,

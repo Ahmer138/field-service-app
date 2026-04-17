@@ -30,6 +30,8 @@ app = FastAPI(
     ],
 )
 
+settings.validate_runtime()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allowed_origins,

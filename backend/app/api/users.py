@@ -14,7 +14,13 @@ from app.schemas.user import UserCreate, UserRead
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=UserRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create User",
+    description="Create a manager, admin, or technician account. Manager/admin access required.",
+)
 def create_user(
     payload: UserCreate,
     db: Session = Depends(get_db),
@@ -48,7 +54,12 @@ def create_user(
     return user
 
 
-@router.get("", response_model=list[UserRead])
+@router.get(
+    "",
+    response_model=list[UserRead],
+    summary="List Users",
+    description="List users with optional role, active-state, and free-text filtering.",
+)
 def list_users(
     role: UserRole | None = Query(default=None),
     is_active: bool | None = Query(default=None),
@@ -77,6 +88,11 @@ def list_users(
     return users
 
 
-@router.get("/me", response_model=UserRead)
+@router.get(
+    "/me",
+    response_model=UserRead,
+    summary="Get Current User",
+    description="Return the currently authenticated user profile.",
+)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user

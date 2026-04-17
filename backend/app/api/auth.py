@@ -7,11 +7,17 @@ from sqlalchemy.orm import Session
 from app.core.security import create_access_token, verify_password
 from app.db import get_db
 from app.models import User
+from app.schemas.auth import AuthTokenRead
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/login")
+@router.post(
+    "/login",
+    response_model=AuthTokenRead,
+    summary="Log In And Issue JWT",
+    description="Authenticate with email and password form fields and receive a bearer access token.",
+)
 def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
