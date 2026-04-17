@@ -172,6 +172,13 @@ JOBS_ERROR_RESPONSES = merge_responses(
         code="rate_limited",
         path="/jobs/123/updates/55/photos",
     ),
+    build_error_response(
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "Object storage is temporarily unavailable.",
+        "Photo storage is temporarily unavailable",
+        code="request_error",
+        path="/jobs/123/updates/55/photos",
+    ),
 )
 
 

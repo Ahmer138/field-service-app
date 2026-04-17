@@ -31,7 +31,7 @@ This file tracks what is complete and what remains for the Field Service App bac
 - [x] type-check and lint steps in CI
 - [x] migration smoke check in CI
 - [x] request rate limiting for login and other abuse-sensitive endpoints
-- [ ] upload size limits and clearer storage failure handling
+- [x] upload size limits and clearer storage failure handling
 - [ ] retention policy for technician location history, presence data, and photos
 
 ## Must-Have Before Production

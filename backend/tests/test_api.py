@@ -1695,3 +1695,127 @@ def test_job_update_photo_rejects_non_image_uploads(client, session_factory):
     )
     assert upload_response.status_code == 400
     assert upload_response.json()["detail"] == "Only image uploads are allowed"
+
+
+def test_job_update_photo_rejects_oversized_uploads(client, session_factory, monkeypatch):
+    manager = create_user(
+        session_factory,
+        email="manager-photo-limit@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Photo Limit",
+    )
+    technician = create_user(
+        session_factory,
+        email="tech-photo-limit@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Photo Limit",
+    )
+
+    with session_factory() as db:
+        job = Job(
+            title="Reject oversized image",
+            address_line1="202 Service Way",
+            city="Dubai",
+            state="Dubai",
+            postal_code="00010",
+            country="UAE",
+            created_by_id=manager.id,
+        )
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+
+        assignment = JobAssignment(
+            job_id=job.id,
+            technician_id=technician.id,
+            assigned_by_id=manager.id,
+        )
+        db.add(assignment)
+        db.commit()
+        job_id = job.id
+
+    monkeypatch.setattr(settings, "PHOTO_UPLOAD_MAX_BYTES", 4)
+
+    technician_headers = login(client, email="tech-photo-limit@example.com", password="secret123")
+    create_update_response = client.post(
+        f"/jobs/{job_id}/updates",
+        headers=technician_headers,
+        json={"message": "Attempted oversized upload"},
+    )
+    assert create_update_response.status_code == 201
+    update_id = create_update_response.json()["id"]
+
+    upload_response = client.post(
+        f"/jobs/{job_id}/updates/{update_id}/photos",
+        headers=technician_headers,
+        files={"file": ("oversized.jpg", b"12345", "image/jpeg")},
+    )
+    assert upload_response.status_code == 413
+    assert upload_response.json()["detail"] == "Photo upload exceeds the 4 bytes limit"
+    assert upload_response.json()["error"]["code"] == "payload_too_large"
+
+
+def test_job_update_photo_reports_storage_failures(client, session_factory, monkeypatch):
+    manager = create_user(
+        session_factory,
+        email="manager-photo-storage@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Photo Storage",
+    )
+    technician = create_user(
+        session_factory,
+        email="tech-photo-storage@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Photo Storage",
+    )
+
+    with session_factory() as db:
+        job = Job(
+            title="Storage failure upload",
+            address_line1="203 Service Way",
+            city="Dubai",
+            state="Dubai",
+            postal_code="00011",
+            country="UAE",
+            created_by_id=manager.id,
+        )
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+
+        assignment = JobAssignment(
+            job_id=job.id,
+            technician_id=technician.id,
+            assigned_by_id=manager.id,
+        )
+        db.add(assignment)
+        db.commit()
+        job_id = job.id
+
+    monkeypatch.setattr(
+        storage_service,
+        "upload_job_update_photo",
+        lambda upload_file: (_ for _ in ()).throw(Exception("minio unavailable")),
+    )
+
+    technician_headers = login(client, email="tech-photo-storage@example.com", password="secret123")
+    create_update_response = client.post(
+        f"/jobs/{job_id}/updates",
+        headers=technician_headers,
+        json={"message": "Attempted upload during storage outage"},
+    )
+    assert create_update_response.status_code == 201
+    update_id = create_update_response.json()["id"]
+
+    upload_response = client.post(
+        f"/jobs/{job_id}/updates/{update_id}/photos",
+        headers=technician_headers,
+        files={"file": ("before.jpg", b"image-bytes", "image/jpeg")},
+    )
+    assert upload_response.status_code == 503
+    assert upload_response.json()["detail"] == "Photo storage is temporarily unavailable"
+    assert upload_response.json()["error"]["code"] == "service_unavailable"

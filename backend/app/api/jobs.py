@@ -33,6 +33,23 @@ from app.schemas.job import (
 router = APIRouter(prefix="/jobs", tags=["jobs"], responses=JOBS_ERROR_RESPONSES)
 
 
+def _validate_upload_size(file: UploadFile) -> None:
+    current_position = file.file.tell()
+    file.file.seek(0, 2)
+    file_size = file.file.tell()
+    file.file.seek(current_position)
+
+    if file_size > settings.PHOTO_UPLOAD_MAX_BYTES:
+        if settings.PHOTO_UPLOAD_MAX_BYTES >= 1024 * 1024:
+            limit_label = f"{settings.PHOTO_UPLOAD_MAX_BYTES / (1024 * 1024):.0f} MB"
+        else:
+            limit_label = f"{settings.PHOTO_UPLOAD_MAX_BYTES} bytes"
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=f"Photo upload exceeds the {limit_label} limit",
+        )
+
+
 def _ensure_job_access(db: Session, job_id: int, current_user: User) -> Job:
     job = db.get(Job, job_id)
     if not job:
@@ -413,8 +430,15 @@ def upload_update_photo(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only image uploads are allowed",
         )
+    _validate_upload_size(file)
 
-    file_key = storage_service.upload_job_update_photo(file)
+    try:
+        file_key = storage_service.upload_job_update_photo(file)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Photo storage is temporarily unavailable",
+        ) from exc
 
     photo = JobUpdatePhoto(
         job_update_id=job_update.id,

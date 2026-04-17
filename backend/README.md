@@ -146,6 +146,22 @@ Abuse-sensitive endpoints now apply configurable rate limits:
 
 Rate-limited responses return HTTP `429` with a `Retry-After` header and the standard API error envelope.
 
+## Photo Upload Hardening
+
+Job update photo uploads now enforce a configurable maximum size and return clearer failures when object storage is unavailable.
+
+Relevant settings:
+
+- `PHOTO_UPLOAD_MAX_BYTES`
+- `PHOTO_UPLOAD_RATE_LIMIT_COUNT`
+- `PHOTO_UPLOAD_RATE_LIMIT_WINDOW_SECONDS`
+
+Photo upload failure behavior:
+
+- non-image uploads return `400`
+- oversized uploads return `413`
+- temporary object storage failures return `503`
+
 ## Logging
 
 The API emits structured JSON request logs and includes an `X-Request-ID` response header for traceability.

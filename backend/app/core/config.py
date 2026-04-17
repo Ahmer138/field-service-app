@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     TECHNICIAN_PRESENCE_RATE_LIMIT_WINDOW_SECONDS: int = 60
     PHOTO_UPLOAD_RATE_LIMIT_COUNT: int = 20
     PHOTO_UPLOAD_RATE_LIMIT_WINDOW_SECONDS: int = 60
+    PHOTO_UPLOAD_MAX_BYTES: int = 10 * 1024 * 1024
     DISPLAY_TIMEZONE: str = "Asia/Dubai"
     APP_ENV: str = "development"
     LOG_LEVEL: str = "INFO"
@@ -77,6 +78,8 @@ class Settings(BaseSettings):
             raise RuntimeError("PHOTO_UPLOAD_RATE_LIMIT_COUNT must be greater than 0")
         if self.PHOTO_UPLOAD_RATE_LIMIT_WINDOW_SECONDS <= 0:
             raise RuntimeError("PHOTO_UPLOAD_RATE_LIMIT_WINDOW_SECONDS must be greater than 0")
+        if self.PHOTO_UPLOAD_MAX_BYTES <= 0:
+            raise RuntimeError("PHOTO_UPLOAD_MAX_BYTES must be greater than 0")
         if not self.cors_allowed_origins:
             raise RuntimeError("CORS_ALLOWED_ORIGINS must include at least one origin")
         try:
