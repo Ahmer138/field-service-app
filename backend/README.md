@@ -172,6 +172,37 @@ Photo upload failure behavior:
 - oversized uploads return `413`
 - temporary object storage failures return `503`
 
+## Retention Policy
+
+The backend now includes a config-driven retention task for location history, presence data, and stored job-update photos.
+
+Default retention windows:
+
+- `LOCATION_RETENTION_DAYS=30`
+- `PRESENCE_RETENTION_DAYS=30`
+- `PHOTO_RETENTION_DAYS=180`
+
+Current behavior:
+
+- deletes technician location history older than the configured cutoff
+- keeps the latest location row for each technician even if it is older than the cutoff
+- deletes stale technician presence rows older than the configured cutoff
+- deletes old photo metadata and object storage files older than the configured cutoff
+
+Run a dry run:
+
+```powershell
+.\.venv\Scripts\python -m app.tasks.retention --dry-run
+```
+
+Run the actual cleanup:
+
+```powershell
+.\.venv\Scripts\python -m app.tasks.retention
+```
+
+The command prints a JSON summary and returns a non-zero exit code if any photo object deletions fail.
+
 ## Logging
 
 The API emits structured JSON request logs and includes an `X-Request-ID` response header for traceability.
@@ -188,6 +219,9 @@ Relevant settings:
 - `TECHNICIAN_PRESENCE_RATE_LIMIT_WINDOW_SECONDS`
 - `PHOTO_UPLOAD_RATE_LIMIT_COUNT`
 - `PHOTO_UPLOAD_RATE_LIMIT_WINDOW_SECONDS`
+- `LOCATION_RETENTION_DAYS`
+- `PRESENCE_RETENTION_DAYS`
+- `PHOTO_RETENTION_DAYS`
 
 Example request log fields:
 

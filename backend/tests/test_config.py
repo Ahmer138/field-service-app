@@ -58,3 +58,14 @@ def test_settings_reject_non_positive_photo_upload_limit():
 
     with pytest.raises(RuntimeError, match="PHOTO_UPLOAD_MAX_BYTES must be greater than 0"):
         settings.validate_runtime()
+
+
+def test_settings_reject_non_positive_retention_values():
+    settings = Settings(
+        LOCATION_RETENTION_DAYS=0,
+        SECRET_KEY="a" * 40,
+        DATABASE_URL="postgresql+psycopg://fsa:fsa_password@localhost:5432/fsa_db",
+    )
+
+    with pytest.raises(RuntimeError, match="LOCATION_RETENTION_DAYS must be greater than 0"):
+        settings.validate_runtime()
