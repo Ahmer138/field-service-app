@@ -135,6 +135,17 @@ API errors now return a consistent JSON envelope while keeping `detail` for back
 
 Swagger/ReDoc now also include concrete examples for the paginated list envelopes and standardized error responses.
 
+## Rate Limiting
+
+Abuse-sensitive endpoints now apply configurable rate limits:
+
+- `POST /auth/login`
+- `POST /locations/me`
+- `POST /presence/me/heartbeat`
+- `POST /jobs/{job_id}/updates/{update_id}/photos`
+
+Rate-limited responses return HTTP `429` with a `Retry-After` header and the standard API error envelope.
+
 ## Logging
 
 The API emits structured JSON request logs and includes an `X-Request-ID` response header for traceability.
@@ -143,6 +154,14 @@ Relevant settings:
 
 - `LOG_LEVEL`
 - `DISPLAY_TIMEZONE`
+- `AUTH_LOGIN_RATE_LIMIT_COUNT`
+- `AUTH_LOGIN_RATE_LIMIT_WINDOW_SECONDS`
+- `TECHNICIAN_LOCATION_RATE_LIMIT_COUNT`
+- `TECHNICIAN_LOCATION_RATE_LIMIT_WINDOW_SECONDS`
+- `TECHNICIAN_PRESENCE_RATE_LIMIT_COUNT`
+- `TECHNICIAN_PRESENCE_RATE_LIMIT_WINDOW_SECONDS`
+- `PHOTO_UPLOAD_RATE_LIMIT_COUNT`
+- `PHOTO_UPLOAD_RATE_LIMIT_WINDOW_SECONDS`
 
 Example request log fields:
 

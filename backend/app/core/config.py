@@ -32,6 +32,14 @@ class Settings(BaseSettings):
     # within this many minutes.
     LOCATION_STALE_AFTER_MINUTES: int = 5
     PRESENCE_ONLINE_AFTER_MINUTES: int = 2
+    AUTH_LOGIN_RATE_LIMIT_COUNT: int = 5
+    AUTH_LOGIN_RATE_LIMIT_WINDOW_SECONDS: int = 60
+    TECHNICIAN_LOCATION_RATE_LIMIT_COUNT: int = 60
+    TECHNICIAN_LOCATION_RATE_LIMIT_WINDOW_SECONDS: int = 60
+    TECHNICIAN_PRESENCE_RATE_LIMIT_COUNT: int = 30
+    TECHNICIAN_PRESENCE_RATE_LIMIT_WINDOW_SECONDS: int = 60
+    PHOTO_UPLOAD_RATE_LIMIT_COUNT: int = 20
+    PHOTO_UPLOAD_RATE_LIMIT_WINDOW_SECONDS: int = 60
     DISPLAY_TIMEZONE: str = "Asia/Dubai"
     APP_ENV: str = "development"
     LOG_LEVEL: str = "INFO"
@@ -53,6 +61,22 @@ class Settings(BaseSettings):
             raise RuntimeError("LOCATION_STALE_AFTER_MINUTES must be greater than 0")
         if self.PRESENCE_ONLINE_AFTER_MINUTES <= 0:
             raise RuntimeError("PRESENCE_ONLINE_AFTER_MINUTES must be greater than 0")
+        if self.AUTH_LOGIN_RATE_LIMIT_COUNT <= 0:
+            raise RuntimeError("AUTH_LOGIN_RATE_LIMIT_COUNT must be greater than 0")
+        if self.AUTH_LOGIN_RATE_LIMIT_WINDOW_SECONDS <= 0:
+            raise RuntimeError("AUTH_LOGIN_RATE_LIMIT_WINDOW_SECONDS must be greater than 0")
+        if self.TECHNICIAN_LOCATION_RATE_LIMIT_COUNT <= 0:
+            raise RuntimeError("TECHNICIAN_LOCATION_RATE_LIMIT_COUNT must be greater than 0")
+        if self.TECHNICIAN_LOCATION_RATE_LIMIT_WINDOW_SECONDS <= 0:
+            raise RuntimeError("TECHNICIAN_LOCATION_RATE_LIMIT_WINDOW_SECONDS must be greater than 0")
+        if self.TECHNICIAN_PRESENCE_RATE_LIMIT_COUNT <= 0:
+            raise RuntimeError("TECHNICIAN_PRESENCE_RATE_LIMIT_COUNT must be greater than 0")
+        if self.TECHNICIAN_PRESENCE_RATE_LIMIT_WINDOW_SECONDS <= 0:
+            raise RuntimeError("TECHNICIAN_PRESENCE_RATE_LIMIT_WINDOW_SECONDS must be greater than 0")
+        if self.PHOTO_UPLOAD_RATE_LIMIT_COUNT <= 0:
+            raise RuntimeError("PHOTO_UPLOAD_RATE_LIMIT_COUNT must be greater than 0")
+        if self.PHOTO_UPLOAD_RATE_LIMIT_WINDOW_SECONDS <= 0:
+            raise RuntimeError("PHOTO_UPLOAD_RATE_LIMIT_WINDOW_SECONDS must be greater than 0")
         if not self.cors_allowed_origins:
             raise RuntimeError("CORS_ALLOWED_ORIGINS must include at least one origin")
         try:

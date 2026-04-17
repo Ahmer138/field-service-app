@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .deps import require_manager_or_admin, require_technician
 from .openapi import LOCATIONS_ERROR_RESPONSES
+from .rate_limit import enforce_rate_limit
 from ..core.config import settings
 from ..db import get_db
 from ..models import TechnicianLocation, User
@@ -56,10 +57,19 @@ def _serialize_latest_location(location: TechnicianLocation, technician: User) -
     description="Technician endpoint for reporting the device GPS location while logged into the mobile app.",
 )
 def create_location_ping(
+    request: Request,
     payload: TechnicianLocationCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_technician),
 ):
+    enforce_rate_limit(
+        request=request,
+        scope="technician_location_ping",
+        identifier=str(current_user.id),
+        limit=settings.TECHNICIAN_LOCATION_RATE_LIMIT_COUNT,
+        window_seconds=settings.TECHNICIAN_LOCATION_RATE_LIMIT_WINDOW_SECONDS,
+    )
+
     location = TechnicianLocation(
         technician_id=current_user.id,
         latitude=payload.latitude,

@@ -73,6 +73,13 @@ AUTH_ERROR_RESPONSES = merge_responses(
             }
         ],
     ),
+    build_error_response(
+        status.HTTP_429_TOO_MANY_REQUESTS,
+        "Too many login attempts were made from the same client.",
+        "Rate limit exceeded. Try again later.",
+        code="rate_limited",
+        path="/auth/login",
+    ),
 )
 
 
@@ -158,6 +165,13 @@ JOBS_ERROR_RESPONSES = merge_responses(
             }
         ],
     ),
+    build_error_response(
+        status.HTTP_429_TOO_MANY_REQUESTS,
+        "Too many abuse-sensitive job actions were attempted in a short time window.",
+        "Rate limit exceeded. Try again later.",
+        code="rate_limited",
+        path="/jobs/123/updates/55/photos",
+    ),
 )
 
 
@@ -197,6 +211,13 @@ LOCATIONS_ERROR_RESPONSES = merge_responses(
             }
         ],
     ),
+    build_error_response(
+        status.HTTP_429_TOO_MANY_REQUESTS,
+        "Too many location pings were submitted in a short time window.",
+        "Rate limit exceeded. Try again later.",
+        code="rate_limited",
+        path="/locations/me",
+    ),
 )
 
 
@@ -235,5 +256,12 @@ PRESENCE_ERROR_RESPONSES = merge_responses(
                 "type": "greater_than_equal",
             }
         ],
+    ),
+    build_error_response(
+        status.HTTP_429_TOO_MANY_REQUESTS,
+        "Too many presence heartbeats were submitted in a short time window.",
+        "Rate limit exceeded. Try again later.",
+        code="rate_limited",
+        path="/presence/me/heartbeat",
     ),
 )

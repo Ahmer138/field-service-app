@@ -36,3 +36,14 @@ def test_settings_reject_invalid_log_level():
 
     with pytest.raises(RuntimeError, match="LOG_LEVEL is invalid"):
         settings.validate_runtime()
+
+
+def test_settings_reject_non_positive_rate_limit_values():
+    settings = Settings(
+        AUTH_LOGIN_RATE_LIMIT_COUNT=0,
+        SECRET_KEY="a" * 40,
+        DATABASE_URL="postgresql+psycopg://fsa:fsa_password@localhost:5432/fsa_db",
+    )
+
+    with pytest.raises(RuntimeError, match="AUTH_LOGIN_RATE_LIMIT_COUNT must be greater than 0"):
+        settings.validate_runtime()

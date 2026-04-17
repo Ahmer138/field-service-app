@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .deps import get_current_user, require_manager_or_admin, require_technician
 from .openapi import JOBS_ERROR_RESPONSES
+from .rate_limit import enforce_rate_limit
+from ..core.config import settings
 from ..db import get_db
 from ..models import Job, JobAssignment, JobEvent, JobUpdate as JobUpdateModel, JobUpdatePhoto, User
 from ..models.job import JobPriority, JobStatus
@@ -393,11 +395,19 @@ def list_updates(
 def upload_update_photo(
     job_id: int,
     update_id: int,
+    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     job_update = _ensure_job_update_access(db, job_id, update_id, current_user)
+    enforce_rate_limit(
+        request=request,
+        scope="job_update_photo_upload",
+        identifier=str(current_user.id),
+        limit=settings.PHOTO_UPLOAD_RATE_LIMIT_COUNT,
+        window_seconds=settings.PHOTO_UPLOAD_RATE_LIMIT_WINDOW_SECONDS,
+    )
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

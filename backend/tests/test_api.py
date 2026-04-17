@@ -4,6 +4,7 @@ import json
 import logging
 from datetime import datetime, timedelta, timezone
 
+from app.core.config import settings
 from app.core.security import get_password_hash
 from app.models import Job, JobAssignment, User
 from app.models.user import UserRole
@@ -190,6 +191,10 @@ def test_openapi_includes_paginated_and_error_examples(client):
     assert forbidden_example["detail"] == "Insufficient permissions"
     assert forbidden_example["error"]["code"] == "forbidden"
 
+    auth_post_responses = payload["paths"]["/auth/login"]["post"]["responses"]
+    rate_limited_example = auth_post_responses["429"]["content"]["application/json"]["example"]
+    assert rate_limited_example["error"]["code"] == "rate_limited"
+
 
 def test_http_errors_use_standard_error_envelope(client, session_factory):
     create_user(
@@ -223,6 +228,78 @@ def test_http_errors_use_standard_error_envelope(client, session_factory):
     assert payload["path"] == "/users"
     assert payload["request_id"] == response.headers["X-Request-ID"]
     assert payload["timestamp"].endswith("Z")
+
+
+def test_login_is_rate_limited(client, session_factory, monkeypatch):
+    create_user(
+        session_factory,
+        email="rate-limit-login@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Rate Limit Login",
+    )
+    monkeypatch.setattr(settings, "AUTH_LOGIN_RATE_LIMIT_COUNT", 2)
+    monkeypatch.setattr(settings, "AUTH_LOGIN_RATE_LIMIT_WINDOW_SECONDS", 60)
+
+    for _ in range(2):
+        response = client.post(
+            "/auth/login",
+            data={"username": "rate-limit-login@example.com", "password": "secret123"},
+        )
+        assert response.status_code == 200
+
+    limited_response = client.post(
+        "/auth/login",
+        data={"username": "rate-limit-login@example.com", "password": "secret123"},
+    )
+
+    assert limited_response.status_code == 429
+    assert limited_response.headers["Retry-After"] == "60"
+    payload = limited_response.json()
+    assert payload["detail"] == "Rate limit exceeded. Try again later."
+    assert payload["error"]["code"] == "rate_limited"
+    assert payload["path"] == "/auth/login"
+
+
+def test_presence_heartbeat_rate_limit_is_scoped_per_user(client, session_factory, monkeypatch):
+    create_user(
+        session_factory,
+        email="manager-heartbeat-rate@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Heartbeat Rate",
+    )
+    create_user(
+        session_factory,
+        email="tech-heartbeat-one@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Heartbeat One",
+    )
+    create_user(
+        session_factory,
+        email="tech-heartbeat-two@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Heartbeat Two",
+    )
+    monkeypatch.setattr(settings, "TECHNICIAN_PRESENCE_RATE_LIMIT_COUNT", 2)
+    monkeypatch.setattr(settings, "TECHNICIAN_PRESENCE_RATE_LIMIT_WINDOW_SECONDS", 60)
+
+    tech_one_headers = login(client, email="tech-heartbeat-one@example.com", password="secret123")
+    tech_two_headers = login(client, email="tech-heartbeat-two@example.com", password="secret123")
+
+    for _ in range(2):
+        response = client.post("/presence/me/heartbeat", headers=tech_one_headers)
+        assert response.status_code == 201
+
+    limited_response = client.post("/presence/me/heartbeat", headers=tech_one_headers)
+    assert limited_response.status_code == 429
+    assert limited_response.headers["Retry-After"] == "60"
+    assert limited_response.json()["error"]["code"] == "rate_limited"
+
+    other_user_response = client.post("/presence/me/heartbeat", headers=tech_two_headers)
+    assert other_user_response.status_code == 201
 
 
 def test_validation_errors_use_standard_error_envelope(client, session_factory):

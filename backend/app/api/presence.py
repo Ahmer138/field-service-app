@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .deps import require_manager_or_admin, require_technician
 from .openapi import PRESENCE_ERROR_RESPONSES
+from .rate_limit import enforce_rate_limit
 from ..core.config import settings
 from ..db import get_db
 from ..models import TechnicianLocation, TechnicianPresence, User
@@ -78,9 +79,18 @@ def _serialize_presence(
     description="Technician endpoint that marks the mobile session as active and updates last-seen time.",
 )
 def heartbeat_presence(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_technician),
 ):
+    enforce_rate_limit(
+        request=request,
+        scope="technician_presence_heartbeat",
+        identifier=str(current_user.id),
+        limit=settings.TECHNICIAN_PRESENCE_RATE_LIMIT_COUNT,
+        window_seconds=settings.TECHNICIAN_PRESENCE_RATE_LIMIT_WINDOW_SECONDS,
+    )
+
     now = datetime.now(timezone.utc)
     presence = db.scalar(
         select(TechnicianPresence).where(TechnicianPresence.technician_id == current_user.id)
