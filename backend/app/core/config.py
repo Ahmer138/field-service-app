@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     PRESENCE_ONLINE_AFTER_MINUTES: int = 2
     DISPLAY_TIMEZONE: str = "Asia/Dubai"
     APP_ENV: str = "development"
+    LOG_LEVEL: str = "INFO"
     CORS_ALLOWED_ORIGINS: str = (
         "http://localhost:3000,"
         "http://127.0.0.1:3000,"
@@ -58,6 +59,8 @@ class Settings(BaseSettings):
             ZoneInfo(self.DISPLAY_TIMEZONE)
         except ZoneInfoNotFoundError as exc:
             raise RuntimeError(f"DISPLAY_TIMEZONE is invalid: {self.DISPLAY_TIMEZONE}") from exc
+        if self.LOG_LEVEL.upper() not in {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}:
+            raise RuntimeError(f"LOG_LEVEL is invalid: {self.LOG_LEVEL}")
 
         if self.APP_ENV.lower() in {"production", "staging"}:
             insecure_values = {"CHANGE_ME", "CHANGE_ME_TO_A_LONG_RANDOM_STRING"}

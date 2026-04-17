@@ -25,3 +25,14 @@ def test_settings_reject_invalid_display_timezone():
 
     with pytest.raises(RuntimeError, match="DISPLAY_TIMEZONE is invalid"):
         settings.validate_runtime()
+
+
+def test_settings_reject_invalid_log_level():
+    settings = Settings(
+        LOG_LEVEL="verbose",
+        SECRET_KEY="a" * 40,
+        DATABASE_URL="postgresql+psycopg://fsa:fsa_password@localhost:5432/fsa_db",
+    )
+
+    with pytest.raises(RuntimeError, match="LOG_LEVEL is invalid"):
+        settings.validate_runtime()

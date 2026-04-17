@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import logging
 from datetime import datetime, timedelta, timezone
 
 from app.core.security import get_password_hash
@@ -148,6 +150,26 @@ def test_cors_allows_configured_frontend_origin(client):
 
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "http://localhost:3000"
+
+
+def test_request_logging_adds_request_id_header_and_structured_log(client, caplog):
+    caplog.set_level(logging.INFO, logger="app.request")
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert "X-Request-ID" in response.headers
+
+    matching_records = [record for record in caplog.records if record.name == "app.request"]
+    assert matching_records
+
+    payload = json.loads(matching_records[-1].getMessage())
+    assert payload["event"] == "request_complete"
+    assert payload["method"] == "GET"
+    assert payload["path"] == "/health"
+    assert payload["status_code"] == 200
+    assert payload["request_id"] == response.headers["X-Request-ID"]
+    assert "duration_ms" in payload
 
 
 def test_create_user_rejects_duplicate_technician_code(client, session_factory):

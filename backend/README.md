@@ -80,6 +80,25 @@ Run the automated suite:
 .\.venv\Scripts\python -m pytest -q
 ```
 
+## Logging
+
+The API emits structured JSON request logs and includes an `X-Request-ID` response header for traceability.
+
+Relevant settings:
+
+- `LOG_LEVEL`
+- `DISPLAY_TIMEZONE`
+
+Example request log fields:
+
+- `event`
+- `request_id`
+- `method`
+- `path`
+- `status_code`
+- `duration_ms`
+- `client_ip`
+
 ## Core Endpoints
 
 ### Auth
