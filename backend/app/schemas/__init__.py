@@ -1,4 +1,5 @@
 from .auth import AuthTokenRead
+from .error import ErrorInfo, ErrorResponse
 from .job import (
     JobAssignRequest,
     JobAssignmentRead,

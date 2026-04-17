@@ -22,7 +22,7 @@ This file tracks what is complete and what remains for the Field Service App bac
 
 - [x] bounded pagination on manager list endpoints
 - [x] paginated response envelopes with `total`, `offset`, `limit`, and `items`
-- [ ] standardized API error response shape across all endpoints
+- [x] standardized API error response shape across all endpoints
 - [ ] OpenAPI examples for paginated list responses
 - [ ] frontend-facing auth/session guidance for web and mobile clients
 

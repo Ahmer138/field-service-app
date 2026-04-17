@@ -98,6 +98,24 @@ Manager-facing list endpoints return a paginated envelope:
 }
 ```
 
+## Error Responses
+
+API errors now return a consistent JSON envelope while keeping `detail` for backward compatibility:
+
+```json
+{
+  "detail": "Insufficient permissions",
+  "error": {
+    "code": "forbidden",
+    "message": "Insufficient permissions",
+    "details": []
+  },
+  "request_id": "4c4d6d8e2c3648c38fd2b0f03b649f31",
+  "path": "/users",
+  "timestamp": "2026-04-17T09:30:00Z"
+}
+```
+
 ## Logging
 
 The API emits structured JSON request logs and includes an `X-Request-ID` response header for traceability.

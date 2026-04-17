@@ -175,6 +175,74 @@ def test_request_logging_adds_request_id_header_and_structured_log(client, caplo
     assert "duration_ms" in payload
 
 
+def test_http_errors_use_standard_error_envelope(client, session_factory):
+    create_user(
+        session_factory,
+        email="tech-error-envelope@example.com",
+        password="secret123",
+        role=UserRole.TECHNICIAN,
+        full_name="Tech Error Envelope",
+    )
+    technician_headers = login(client, email="tech-error-envelope@example.com", password="secret123")
+
+    response = client.post(
+        "/users",
+        headers=technician_headers,
+        json={
+            "email": "blocked-envelope@example.com",
+            "password": "secret123",
+            "role": "technician",
+            "technician_code": "BLOCK-ENVELOPE-001",
+            "full_name": "Blocked Envelope User",
+            "is_active": True,
+        },
+    )
+
+    assert response.status_code == 403
+    payload = response.json()
+    assert payload["detail"] == "Insufficient permissions"
+    assert payload["error"]["code"] == "forbidden"
+    assert payload["error"]["message"] == "Insufficient permissions"
+    assert payload["error"]["details"] == []
+    assert payload["path"] == "/users"
+    assert payload["request_id"] == response.headers["X-Request-ID"]
+    assert payload["timestamp"].endswith("Z")
+
+
+def test_validation_errors_use_standard_error_envelope(client, session_factory):
+    create_user(
+        session_factory,
+        email="manager-error-envelope@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Manager Error Envelope",
+    )
+    manager_headers = login(client, email="manager-error-envelope@example.com", password="secret123")
+
+    response = client.post(
+        "/users",
+        headers=manager_headers,
+        json={
+            "email": "missing-envelope-code@example.com",
+            "password": "secret123",
+            "role": "technician",
+            "full_name": "Missing Envelope Code",
+            "is_active": True,
+        },
+    )
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["detail"] == "Request validation failed"
+    assert payload["error"]["code"] == "validation_error"
+    assert payload["error"]["message"] == "Request validation failed"
+    assert payload["path"] == "/users"
+    assert payload["request_id"] == response.headers["X-Request-ID"]
+    assert payload["timestamp"].endswith("Z")
+    assert payload["error"]["details"]
+    assert payload["error"]["details"][0]["message"] == "Value error, Technician code is required for technicians"
+
+
 def test_create_user_rejects_duplicate_technician_code(client, session_factory):
     create_user(
         session_factory,
