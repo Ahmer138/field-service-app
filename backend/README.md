@@ -87,6 +87,7 @@ It now runs two backend quality gates on push and pull request updates:
 
 - `python -m ruff check .`
 - `python -m pyright`
+- `alembic upgrade head` against disposable PostgreSQL in CI
 - `python -m pytest -q`
 
 For local developer checks:
@@ -95,8 +96,11 @@ For local developer checks:
 .\.venv\Scripts\python -m pip install -r requirements-dev.txt
 .\.venv\Scripts\python -m ruff check .
 .\.venv\Scripts\python -m pyright
+.\.venv\Scripts\alembic upgrade head
 .\.venv\Scripts\python -m pytest -q
 ```
+
+The local Alembic command requires PostgreSQL to be available and reachable from `DATABASE_URL`.
 
 ## Pagination
 
