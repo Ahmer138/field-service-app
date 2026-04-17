@@ -24,6 +24,7 @@ from app.core.logging import (
     set_request_id,
 )
 from app.db import get_db
+from app.schemas.error import ErrorInfo
 from app.schemas.error import ErrorResponse
 from app.services import storage_service
 
@@ -86,11 +87,11 @@ def _error_payload(
 ) -> dict:
     return ErrorResponse(
         detail=message,
-        error={
-            "code": _status_code_to_error_code(status_code),
-            "message": message,
-            "details": details or [],
-        },
+        error=ErrorInfo(
+            code=_status_code_to_error_code(status_code),
+            message=message,
+            details=details or [],
+        ),
         request_id=get_request_id(),
         path=request.url.path,
         timestamp=datetime.now(timezone.utc),

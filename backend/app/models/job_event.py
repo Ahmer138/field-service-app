@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from enum import Enum
 
 from sqlalchemy import DateTime, Enum as SQLEnum, ForeignKey, func
@@ -24,7 +25,7 @@ class JobEvent(Base):
     event_type: Mapped[JobEventType] = mapped_column(
         SQLEnum(JobEventType, name="job_event_type"), nullable=False
     )
-    occurred_at: Mapped[DateTime] = mapped_column(
+    occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 

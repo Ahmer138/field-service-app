@@ -183,4 +183,34 @@ class JobUpdatePhotoDownload(BaseModel):
 
 
 class JobListResponse(PaginatedResponse[JobRead]):
-    pass
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "total": 1,
+                "offset": 0,
+                "limit": 50,
+                "items": [
+                    {
+                        "id": 12,
+                        "title": "Emergency compressor repair",
+                        "description": "Customer reports no cooling in building A",
+                        "technician_instructions": "Bring refrigerant gauges and replacement capacitor",
+                        "internal_notes": "VIP site access requires manager notification",
+                        "address_line1": "12 Marina Walk",
+                        "address_line2": "Building A",
+                        "city": "Dubai",
+                        "state": "Dubai",
+                        "postal_code": "10001",
+                        "country": "UAE",
+                        "scheduled_start": "2026-04-20T09:00:00+04:00",
+                        "scheduled_end": "2026-04-20T11:00:00+04:00",
+                        "status": "not_started",
+                        "priority": "urgent",
+                        "created_by_id": 2,
+                        "created_at": "2026-04-17T12:10:00+04:00",
+                        "updated_at": "2026-04-17T12:10:00+04:00",
+                    }
+                ],
+            }
+        }
+    )

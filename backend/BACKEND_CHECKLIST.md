@@ -23,12 +23,12 @@ This file tracks what is complete and what remains for the Field Service App bac
 - [x] bounded pagination on manager list endpoints
 - [x] paginated response envelopes with `total`, `offset`, `limit`, and `items`
 - [x] standardized API error response shape across all endpoints
-- [ ] OpenAPI examples for paginated list responses
+- [x] OpenAPI examples for paginated list responses
 - [ ] frontend-facing auth/session guidance for web and mobile clients
 
 ## Must-Have Before Beta
 
-- [ ] type-check and lint steps in CI
+- [x] type-check and lint steps in CI
 - [ ] migration smoke check in CI
 - [ ] request rate limiting for login and other abuse-sensitive endpoints
 - [ ] upload size limits and clearer storage failure handling

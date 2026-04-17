@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,7 +21,7 @@ class JobUpdatePhoto(Base):
     file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     content_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
-    created_at: Mapped[DateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 

@@ -26,4 +26,31 @@ class TechnicianPresenceRead(BaseModel):
 
 
 class TechnicianPresenceListResponse(PaginatedResponse[TechnicianPresenceRead]):
-    pass
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "total": 1,
+                "offset": 0,
+                "limit": 50,
+                "items": [
+                    {
+                        "technician_id": 7,
+                        "technician_name": "Tech One",
+                        "is_logged_in": True,
+                        "is_online": True,
+                        "session_started_at": "2026-04-17T08:00:00+04:00",
+                        "last_seen_at": "2026-04-17T13:05:00+04:00",
+                        "latest_location": {
+                            "id": 101,
+                            "technician_id": 7,
+                            "latitude": 25.2048,
+                            "longitude": 55.2708,
+                            "accuracy_meters": 12.5,
+                            "recorded_at": "2026-04-17T13:05:00+04:00",
+                            "created_at": "2026-04-17T13:05:00+04:00",
+                        },
+                    }
+                ],
+            }
+        }
+    )

@@ -5,13 +5,14 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .deps import get_current_user, require_manager_or_admin
+from .openapi import USERS_ERROR_RESPONSES
 from ..core.security import get_password_hash
 from ..db import get_db
 from ..models import User
 from ..models.user import UserRole
 from app.schemas.user import UserCreate, UserListResponse, UserRead
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(prefix="/users", tags=["users"], responses=USERS_ERROR_RESPONSES)
 
 
 @router.post(

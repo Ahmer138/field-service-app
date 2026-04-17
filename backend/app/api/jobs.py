@@ -7,6 +7,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .deps import get_current_user, require_manager_or_admin, require_technician
+from .openapi import JOBS_ERROR_RESPONSES
 from ..db import get_db
 from ..models import Job, JobAssignment, JobEvent, JobUpdate as JobUpdateModel, JobUpdatePhoto, User
 from ..models.job import JobPriority, JobStatus
@@ -27,7 +28,7 @@ from app.schemas.job import (
     JobUpdateRead,
 )
 
-router = APIRouter(prefix="/jobs", tags=["jobs"])
+router = APIRouter(prefix="/jobs", tags=["jobs"], responses=JOBS_ERROR_RESPONSES)
 
 
 def _ensure_job_access(db: Session, job_id: int, current_user: User) -> Job:

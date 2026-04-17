@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import Boolean, DateTime, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -17,17 +19,17 @@ class TechnicianPresence(Base):
         index=True,
     )
     is_logged_in: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    session_started_at: Mapped[DateTime] = mapped_column(
+    session_started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
     )
-    last_seen_at: Mapped[DateTime] = mapped_column(
+    last_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
     )
-    updated_at: Mapped[DateTime] = mapped_column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),

@@ -74,4 +74,24 @@ class UserRead(BaseModel):
 
 
 class UserListResponse(PaginatedResponse[UserRead]):
-    pass
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "total": 1,
+                "offset": 0,
+                "limit": 50,
+                "items": [
+                    {
+                        "id": 7,
+                        "email": "tech1@example.com",
+                        "role": "technician",
+                        "technician_code": "DXB-101",
+                        "full_name": "Tech One",
+                        "is_active": True,
+                        "created_at": "2026-04-17T12:00:00+04:00",
+                        "updated_at": "2026-04-17T12:00:00+04:00",
+                    }
+                ],
+            }
+        }
+    )

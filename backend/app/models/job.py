@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from enum import Enum
 
 from sqlalchemy import DateTime, Enum as SQLEnum, ForeignKey, String, Text, func
@@ -39,8 +40,8 @@ class Job(Base):
     postal_code: Mapped[str] = mapped_column(String(20), nullable=False)
     country: Mapped[str] = mapped_column(String(100), nullable=False, default="USA")
 
-    scheduled_start: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    scheduled_end: Mapped[DateTime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    scheduled_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    scheduled_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     status: Mapped[JobStatus] = mapped_column(
         SQLEnum(JobStatus, name="job_status"), nullable=False, default=JobStatus.NOT_STARTED
@@ -52,10 +53,10 @@ class Job(Base):
     created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
 
 
-    created_at: Mapped[DateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
-    updated_at: Mapped[DateTime] = mapped_column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
 

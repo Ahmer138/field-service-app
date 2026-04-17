@@ -175,6 +175,22 @@ def test_request_logging_adds_request_id_header_and_structured_log(client, caplo
     assert "duration_ms" in payload
 
 
+def test_openapi_includes_paginated_and_error_examples(client):
+    response = client.get("/openapi.json")
+
+    assert response.status_code == 200
+    payload = response.json()
+
+    user_list_schema = payload["components"]["schemas"]["UserListResponse"]
+    assert user_list_schema["example"]["total"] == 1
+    assert user_list_schema["example"]["items"][0]["technician_code"] == "DXB-101"
+
+    users_get_responses = payload["paths"]["/users"]["get"]["responses"]
+    forbidden_example = users_get_responses["403"]["content"]["application/json"]["example"]
+    assert forbidden_example["detail"] == "Insufficient permissions"
+    assert forbidden_example["error"]["code"] == "forbidden"
+
+
 def test_http_errors_use_standard_error_envelope(client, session_factory):
     create_user(
         session_factory,
@@ -403,7 +419,7 @@ def test_assigned_technician_can_complete_job_workflow(client, session_factory):
 
 
 def test_job_list_supports_manager_filters_and_search(client, session_factory):
-    manager = create_user(
+    create_user(
         session_factory,
         email="manager-job-filter@example.com",
         password="secret123",
@@ -478,7 +494,7 @@ def test_job_list_supports_creator_and_schedule_range_filters(client, session_fa
         role=UserRole.MANAGER,
         full_name="Manager Job Range One",
     )
-    manager_two = create_user(
+    create_user(
         session_factory,
         email="manager-job-range-two@example.com",
         password="secret123",
@@ -606,7 +622,7 @@ def test_manager_can_remove_assignment_and_revoke_access(client, session_factory
 
 
 def test_technician_can_send_location_and_manager_can_read_latest(client, session_factory):
-    manager = create_user(
+    create_user(
         session_factory,
         email="manager-location@example.com",
         password="secret123",
@@ -893,7 +909,7 @@ def test_latest_location_list_can_exclude_stale_technicians(client, session_fact
         role=UserRole.MANAGER,
         full_name="Manager Location Filter",
     )
-    stale_technician = create_user(
+    create_user(
         session_factory,
         email="tech-location-filter-old@example.com",
         password="secret123",
@@ -1228,7 +1244,7 @@ def test_unassigned_technician_cannot_access_job(client, session_factory):
         role=UserRole.TECHNICIAN,
         full_name="Assigned Tech",
     )
-    unassigned_technician = create_user(
+    create_user(
         session_factory,
         email="unassigned-tech@example.com",
         password="secret123",

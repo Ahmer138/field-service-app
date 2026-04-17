@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .deps import require_manager_or_admin, require_technician
+from .openapi import PRESENCE_ERROR_RESPONSES
 from ..core.config import settings
 from ..db import get_db
 from ..models import TechnicianLocation, TechnicianPresence, User
@@ -14,7 +15,7 @@ from ..models.user import UserRole
 from ..schemas.location import TechnicianLocationRead
 from ..schemas.presence import TechnicianPresenceListResponse, TechnicianPresenceRead
 
-router = APIRouter(prefix="/presence", tags=["presence"])
+router = APIRouter(prefix="/presence", tags=["presence"], responses=PRESENCE_ERROR_RESPONSES)
 
 
 def _normalize_to_utc(value: datetime) -> datetime:
@@ -179,7 +180,12 @@ def list_technician_presence(
         )
     ).all()
     if not presences:
-        return []
+        return {
+            "total": 0,
+            "offset": offset,
+            "limit": limit,
+            "items": [],
+        }
 
     technician_ids = [presence.technician_id for presence in presences]
     technicians = db.scalars(select(User).where(User.id.in_(technician_ids))).all()

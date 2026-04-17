@@ -8,14 +8,17 @@ from datetime import datetime, timezone
 from typing import Any
 
 _request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
+_logging_configured = False
 
 
 def configure_logging(level_name: str) -> None:
+    global _logging_configured
+
     level = getattr(logging, level_name.upper(), logging.INFO)
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
 
-    if getattr(configure_logging, "_configured", False):
+    if _logging_configured:
         return
 
     handler = logging.StreamHandler(sys.stdout)
@@ -24,7 +27,7 @@ def configure_logging(level_name: str) -> None:
     root_logger.handlers.clear()
     root_logger.addHandler(handler)
 
-    configure_logging._configured = True
+    _logging_configured = True
 
 
 def set_request_id(request_id: str) -> Token[str | None]:

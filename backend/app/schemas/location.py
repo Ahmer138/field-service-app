@@ -48,8 +48,57 @@ class TechnicianLocationLatestRead(TechnicianLocationRead):
 
 
 class TechnicianLocationLatestListResponse(PaginatedResponse[TechnicianLocationLatestRead]):
-    pass
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "total": 1,
+                "offset": 0,
+                "limit": 50,
+                "items": [
+                    {
+                        "id": 101,
+                        "technician_id": 7,
+                        "latitude": 25.2048,
+                        "longitude": 55.2708,
+                        "accuracy_meters": 12.5,
+                        "recorded_at": "2026-04-17T13:05:00+04:00",
+                        "created_at": "2026-04-17T13:05:00+04:00",
+                        "technician_name": "Tech One",
+                        "is_stale": False,
+                    }
+                ],
+            }
+        }
+    )
 
 
 class TechnicianLocationHistoryResponse(PaginatedResponse[TechnicianLocationRead]):
-    pass
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "total": 2,
+                "offset": 0,
+                "limit": 50,
+                "items": [
+                    {
+                        "id": 101,
+                        "technician_id": 7,
+                        "latitude": 25.2048,
+                        "longitude": 55.2708,
+                        "accuracy_meters": 12.5,
+                        "recorded_at": "2026-04-17T13:05:00+04:00",
+                        "created_at": "2026-04-17T13:05:00+04:00",
+                    },
+                    {
+                        "id": 100,
+                        "technician_id": 7,
+                        "latitude": 25.204,
+                        "longitude": 55.27,
+                        "accuracy_meters": 14.0,
+                        "recorded_at": "2026-04-17T12:55:00+04:00",
+                        "created_at": "2026-04-17T12:55:00+04:00",
+                    },
+                ],
+            }
+        }
+    )

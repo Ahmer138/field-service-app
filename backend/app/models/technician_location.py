@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import DateTime, Float, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,13 +22,13 @@ class TechnicianLocation(Base):
     longitude: Mapped[float] = mapped_column(Float, nullable=False)
     accuracy_meters: Mapped[float | None] = mapped_column(Float, nullable=True)
 
-    recorded_at: Mapped[DateTime] = mapped_column(
+    recorded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
         index=True,
     )
-    created_at: Mapped[DateTime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),

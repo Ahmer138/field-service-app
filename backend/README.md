@@ -83,7 +83,20 @@ Run the automated suite:
 ## CI
 
 The repo now includes a GitHub Actions workflow at `.github/workflows/backend-ci.yml`.
-It installs the backend dependencies and runs `pytest -q` on push and pull request updates.
+It now runs two backend quality gates on push and pull request updates:
+
+- `python -m ruff check .`
+- `python -m pyright`
+- `python -m pytest -q`
+
+For local developer checks:
+
+```powershell
+.\.venv\Scripts\python -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python -m ruff check .
+.\.venv\Scripts\python -m pyright
+.\.venv\Scripts\python -m pytest -q
+```
 
 ## Pagination
 
@@ -115,6 +128,8 @@ API errors now return a consistent JSON envelope while keeping `detail` for back
   "timestamp": "2026-04-17T09:30:00Z"
 }
 ```
+
+Swagger/ReDoc now also include concrete examples for the paginated list envelopes and standardized error responses.
 
 ## Logging
 

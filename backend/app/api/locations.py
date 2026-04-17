@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from .deps import get_current_user, require_manager_or_admin, require_technician
+from .deps import require_manager_or_admin, require_technician
+from .openapi import LOCATIONS_ERROR_RESPONSES
 from ..core.config import settings
 from ..db import get_db
 from ..models import TechnicianLocation, User
@@ -19,7 +20,7 @@ from ..schemas.location import (
     TechnicianLocationRead,
 )
 
-router = APIRouter(prefix="/locations", tags=["locations"])
+router = APIRouter(prefix="/locations", tags=["locations"], responses=LOCATIONS_ERROR_RESPONSES)
 
 
 def _normalize_recorded_at(recorded_at: datetime) -> datetime:
