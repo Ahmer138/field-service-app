@@ -56,6 +56,12 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     METRICS_ENABLED: bool = True
     METRICS_AUTH_TOKEN: str | None = None
+    TRUSTED_HOSTS: str = "localhost,127.0.0.1,testserver"
+    FORWARDED_ALLOW_IPS: str = "127.0.0.1"
+    ENABLE_HTTPS_REDIRECT: bool = False
+    ENABLE_HSTS: bool = False
+    HSTS_MAX_AGE_SECONDS: int = 31536000
+    SECURITY_RESPONSE_HEADERS_ENABLED: bool = True
     CORS_ALLOWED_ORIGINS: str = (
         "http://localhost:3000,"
         "http://127.0.0.1:3000,"
@@ -66,6 +72,10 @@ class Settings(BaseSettings):
     @property
     def cors_allowed_origins(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ALLOWED_ORIGINS.split(",") if origin.strip()]
+
+    @property
+    def trusted_hosts(self) -> list[str]:
+        return [host.strip() for host in self.TRUSTED_HOSTS.split(",") if host.strip()]
 
     @staticmethod
     def _read_secret_file(path_value: str, setting_name: str) -> str:
@@ -127,8 +137,12 @@ class Settings(BaseSettings):
             raise RuntimeError("PHOTO_RETENTION_DAYS must be greater than 0")
         if not self.cors_allowed_origins:
             raise RuntimeError("CORS_ALLOWED_ORIGINS must include at least one origin")
+        if not self.trusted_hosts:
+            raise RuntimeError("TRUSTED_HOSTS must include at least one host")
         if not self.SERVICE_NAME.strip():
             raise RuntimeError("SERVICE_NAME must not be empty")
+        if self.HSTS_MAX_AGE_SECONDS <= 0:
+            raise RuntimeError("HSTS_MAX_AGE_SECONDS must be greater than 0")
         try:
             ZoneInfo(self.DISPLAY_TIMEZONE)
         except ZoneInfoNotFoundError as exc:
@@ -141,6 +155,10 @@ class Settings(BaseSettings):
             if self.SECRET_KEY in insecure_values or len(self.SECRET_KEY) < 32:
                 raise RuntimeError(
                     "SECRET_KEY must be replaced with a strong production secret in staging/production"
+                )
+            if "*" in self.trusted_hosts:
+                raise RuntimeError(
+                    "TRUSTED_HOSTS cannot contain '*' in staging/production"
                 )
 
 

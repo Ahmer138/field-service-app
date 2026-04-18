@@ -178,6 +178,25 @@ def test_request_logging_adds_request_id_header_and_structured_log(client, caplo
     assert "duration_ms" in payload
 
 
+def test_security_headers_are_added_to_responses(client):
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["x-frame-options"] == "DENY"
+    assert response.headers["referrer-policy"] == "no-referrer"
+    assert response.headers["permissions-policy"] == "camera=(), microphone=(), geolocation=()"
+
+
+def test_trusted_host_middleware_rejects_untrusted_hosts(client):
+    response = client.get(
+        "/health",
+        headers={"Host": "evil.example.com"},
+    )
+
+    assert response.status_code == 400
+
+
 def test_openapi_includes_paginated_and_error_examples(client):
     response = client.get("/openapi.json")
 

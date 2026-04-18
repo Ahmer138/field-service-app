@@ -114,3 +114,26 @@ def test_production_settings_accept_secret_key_file():
     )
 
     settings.validate_runtime()
+
+
+def test_production_settings_reject_wildcard_trusted_hosts():
+    settings = Settings(
+        APP_ENV="production",
+        SECRET_KEY="a" * 40,
+        DATABASE_URL="postgresql+psycopg://fsa:fsa_password@localhost:5432/fsa_db",
+        TRUSTED_HOSTS="*",
+    )
+
+    with pytest.raises(RuntimeError, match="TRUSTED_HOSTS cannot contain '\\*'"):
+        settings.validate_runtime()
+
+
+def test_settings_reject_empty_trusted_hosts():
+    settings = Settings(
+        SECRET_KEY="a" * 40,
+        DATABASE_URL="postgresql+psycopg://fsa:fsa_password@localhost:5432/fsa_db",
+        TRUSTED_HOSTS="",
+    )
+
+    with pytest.raises(RuntimeError, match="TRUSTED_HOSTS must include at least one host"):
+        settings.validate_runtime()

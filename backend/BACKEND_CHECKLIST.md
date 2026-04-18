@@ -40,4 +40,4 @@ This file tracks what is complete and what remains for the Field Service App bac
 - [x] secrets management outside `.env`
 - [x] monitoring, alerting, and log aggregation
 - [x] backup and recovery posture for PostgreSQL and object storage
-- [ ] HTTPS/reverse proxy and deployment hardening
+- [x] HTTPS/reverse proxy and deployment hardening

@@ -211,6 +211,49 @@ Operational guidance:
 - verify `/health/db`, `/health/storage`, login, and photo access after restore
 - keep multiple recovery points instead of a single latest backup
 
+## HTTPS and Reverse Proxy
+
+The backend now includes a hardened deployment baseline for TLS termination and reverse-proxy operation.
+
+Files:
+
+- `docker-compose.prod.yml`
+- `deploy/nginx/nginx.conf`
+- `deploy/nginx/conf.d/field-service.conf`
+
+Runtime hardening included in the API:
+
+- trusted-host enforcement via `TRUSTED_HOSTS`
+- proxy-header aware Uvicorn startup via `FORWARDED_ALLOW_IPS`
+- optional HTTPS redirect via `ENABLE_HTTPS_REDIRECT`
+- optional HSTS via `ENABLE_HSTS`
+- default security response headers
+- non-root container runtime in `Dockerfile`
+- container healthcheck hitting `/health`
+
+Relevant settings:
+
+- `TRUSTED_HOSTS`
+- `FORWARDED_ALLOW_IPS`
+- `ENABLE_HTTPS_REDIRECT`
+- `ENABLE_HSTS`
+- `HSTS_MAX_AGE_SECONDS`
+- `SECURITY_RESPONSE_HEADERS_ENABLED`
+
+Example production startup:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+```
+
+Deployment notes:
+
+- replace `api.example.com` in the Nginx config with the real hostname
+- mount real TLS certificate files into `deploy/certs`
+- set production `TRUSTED_HOSTS` to explicit hostnames only
+- keep `FORWARDED_ALLOW_IPS` limited to the reverse proxy network identity
+- enable HTTPS redirect and HSTS only behind the TLS-terminating proxy
+
 ## Client Handoff
 
 Frontend and mobile teams should use [CLIENT_AUTH_SESSION_GUIDE.md](CLIENT_AUTH_SESSION_GUIDE.md) as the current source of truth for:
@@ -330,6 +373,12 @@ Relevant settings:
 - `MINIO_SECRET_KEY_FILE`
 - `METRICS_ENABLED`
 - `METRICS_AUTH_TOKEN`
+- `TRUSTED_HOSTS`
+- `FORWARDED_ALLOW_IPS`
+- `ENABLE_HTTPS_REDIRECT`
+- `ENABLE_HSTS`
+- `HSTS_MAX_AGE_SECONDS`
+- `SECURITY_RESPONSE_HEADERS_ENABLED`
 - `TECHNICIAN_LOCATION_RATE_LIMIT_COUNT`
 - `TECHNICIAN_LOCATION_RATE_LIMIT_WINDOW_SECONDS`
 - `TECHNICIAN_PRESENCE_RATE_LIMIT_COUNT`
@@ -445,9 +494,13 @@ Supported presence filters:
 
 ## Current Scope
 
-This backend is now suitable for MVP integration, but production deployment still needs the usual infrastructure work:
+This backend now includes the planned backend completion checklist items for auth, workflows, files, observability, backup, and deployment hardening.
 
-- HTTPS and reverse proxy hardening
+Remaining work from here is environment-specific operational rollout such as:
+
+- certificate issuance and renewal automation
+- production DNS, firewall, and host provisioning
+- CI/CD orchestration and release policy
 
 ## Frontend Integration Note
 
