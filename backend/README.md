@@ -37,11 +37,13 @@ pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-4. Update any secrets in `.env`.
+4. Update any secrets in `.env` for local development only.
    Important settings include:
 
 - `DISPLAY_TIMEZONE=Asia/Dubai`
 - `CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173`
+
+For staging/production, prefer mounted secret files outside the repo over storing real secrets in `.env`.
 
 5. Start PostgreSQL and MinIO.
 
@@ -101,6 +103,34 @@ For local developer checks:
 ```
 
 The local Alembic command requires PostgreSQL to be available and reachable from `DATABASE_URL`.
+
+## Secrets Management
+
+Local development can continue using `.env`, but deployment environments should supply secrets outside the repo.
+
+Supported file-based secret settings:
+
+- `DATABASE_URL_FILE`
+- `SECRET_KEY_FILE`
+- `MINIO_ACCESS_KEY_FILE`
+- `MINIO_SECRET_KEY_FILE`
+
+If both a direct value and a `*_FILE` variant are set, the file value wins.
+
+Example deployment pattern:
+
+1. Mount secret files into the container, such as `/run/secrets/secret_key`.
+2. Set the matching `*_FILE` environment variables to those mounted paths.
+3. Keep real production secrets out of committed `.env` files.
+
+Example:
+
+```text
+SECRET_KEY_FILE=/run/secrets/secret_key
+DATABASE_URL_FILE=/run/secrets/database_url
+MINIO_ACCESS_KEY_FILE=/run/secrets/minio_access_key
+MINIO_SECRET_KEY_FILE=/run/secrets/minio_secret_key
+```
 
 ## Client Handoff
 
@@ -212,8 +242,12 @@ Relevant settings:
 
 - `LOG_LEVEL`
 - `DISPLAY_TIMEZONE`
+- `DATABASE_URL_FILE`
+- `SECRET_KEY_FILE`
 - `AUTH_LOGIN_RATE_LIMIT_COUNT`
 - `AUTH_LOGIN_RATE_LIMIT_WINDOW_SECONDS`
+- `MINIO_ACCESS_KEY_FILE`
+- `MINIO_SECRET_KEY_FILE`
 - `TECHNICIAN_LOCATION_RATE_LIMIT_COUNT`
 - `TECHNICIAN_LOCATION_RATE_LIMIT_WINDOW_SECONDS`
 - `TECHNICIAN_PRESENCE_RATE_LIMIT_COUNT`

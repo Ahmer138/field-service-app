@@ -1,5 +1,7 @@
+from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,18 +20,22 @@ class Settings(BaseSettings):
 
     # JWT configuration
     SECRET_KEY: str = "CHANGE_ME"
+    SECRET_KEY_FILE: str | None = None
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
     # MinIO configuration for local object storage.
     MINIO_ENDPOINT: str = "localhost:9000"
     MINIO_ACCESS_KEY: str = "minio"
+    MINIO_ACCESS_KEY_FILE: str | None = None
     MINIO_SECRET_KEY: str = "minio_password"
+    MINIO_SECRET_KEY_FILE: str | None = None
     MINIO_BUCKET_NAME: str = "job-update-photos"
     MINIO_SECURE: bool = False
 
     # A technician is considered "stale" for manager views if no location ping arrives
     # within this many minutes.
+    DATABASE_URL_FILE: str | None = None
     LOCATION_STALE_AFTER_MINUTES: int = 5
     PRESENCE_ONLINE_AFTER_MINUTES: int = 2
     AUTH_LOGIN_RATE_LIMIT_COUNT: int = 5
@@ -57,6 +63,33 @@ class Settings(BaseSettings):
     @property
     def cors_allowed_origins(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ALLOWED_ORIGINS.split(",") if origin.strip()]
+
+    @staticmethod
+    def _read_secret_file(path_value: str, setting_name: str) -> str:
+        path = Path(path_value)
+        if not path.is_file():
+            raise RuntimeError(f"{setting_name} points to a missing file: {path}")
+        value = path.read_text(encoding="utf-8").strip()
+        if not value:
+            raise RuntimeError(f"{setting_name} points to an empty file: {path}")
+        return value
+
+    @model_validator(mode="after")
+    def apply_file_overrides(self) -> "Settings":
+        file_overrides = {
+            "DATABASE_URL": self.DATABASE_URL_FILE,
+            "SECRET_KEY": self.SECRET_KEY_FILE,
+            "MINIO_ACCESS_KEY": self.MINIO_ACCESS_KEY_FILE,
+            "MINIO_SECRET_KEY": self.MINIO_SECRET_KEY_FILE,
+        }
+        for field_name, file_path in file_overrides.items():
+            if file_path:
+                setattr(
+                    self,
+                    field_name,
+                    self._read_secret_file(file_path, f"{field_name}_FILE"),
+                )
+        return self
 
     def validate_runtime(self) -> None:
         if self.ACCESS_TOKEN_EXPIRE_MINUTES <= 0:
