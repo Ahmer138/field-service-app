@@ -176,6 +176,41 @@ Log aggregation guidance:
 - index `service`, `environment`, `request_id`, `event`, `path`, and `status_code`
 - use `request_id` to correlate API failures with application and proxy logs
 
+## Backup and Recovery
+
+The backend now includes Docker Compose backup and restore scripts plus a recovery runbook.
+
+Files:
+
+- [BACKUP_RECOVERY.md](BACKUP_RECOVERY.md)
+- `.\scripts\backup-compose.ps1`
+- `.\scripts\restore-compose.ps1`
+
+Backup behavior:
+
+- captures PostgreSQL as a logical `pg_dump` archive
+- captures MinIO object data from `/data`
+- writes a `backup-manifest.json` with the captured Alembic version and restore order
+
+Create a backup:
+
+```powershell
+.\scripts\backup-compose.ps1
+```
+
+Restore a backup:
+
+```powershell
+.\scripts\restore-compose.ps1 -BackupPath .\backups\20260418T120000Z
+```
+
+Operational guidance:
+
+- store backup sets outside the Docker host after creation
+- run restore drills regularly in a separate environment
+- verify `/health/db`, `/health/storage`, login, and photo access after restore
+- keep multiple recovery points instead of a single latest backup
+
 ## Client Handoff
 
 Frontend and mobile teams should use [CLIENT_AUTH_SESSION_GUIDE.md](CLIENT_AUTH_SESSION_GUIDE.md) as the current source of truth for:
@@ -412,11 +447,7 @@ Supported presence filters:
 
 This backend is now suitable for MVP integration, but production deployment still needs the usual infrastructure work:
 
-- secret management
-- HTTPS and reverse proxy
-- monitoring/log aggregation
-- backup and retention policies
-- CI/CD pipeline
+- HTTPS and reverse proxy hardening
 
 ## Frontend Integration Note
 
