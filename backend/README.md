@@ -132,6 +132,50 @@ MINIO_ACCESS_KEY_FILE=/run/secrets/minio_access_key
 MINIO_SECRET_KEY_FILE=/run/secrets/minio_secret_key
 ```
 
+## Observability
+
+The backend now exposes Prometheus-style metrics at `GET /metrics` and continues to emit structured JSON logs to stdout for aggregation.
+
+Relevant settings:
+
+- `SERVICE_NAME`
+- `LOG_LEVEL`
+- `METRICS_ENABLED`
+- `METRICS_AUTH_TOKEN`
+
+Metrics behavior:
+
+- `METRICS_ENABLED=true` exposes the scrape endpoint
+- if `METRICS_AUTH_TOKEN` is set, scrapers must send `Authorization: Bearer <token>`
+- request metrics include counts, latency histogram buckets, error totals, and rate-limited totals
+- dependency health is exported after `GET /health/db` and `GET /health/storage` checks run
+
+Example metrics scrape:
+
+```powershell
+curl http://localhost:8000/metrics
+```
+
+Example authenticated scrape:
+
+```powershell
+curl -H "Authorization: Bearer my-metrics-token" http://localhost:8000/metrics
+```
+
+Suggested alerts:
+
+- elevated `5xx` responses from `field_service_http_requests_total`
+- spikes in `field_service_rate_limited_requests_total`
+- sustained latency growth in `field_service_http_request_duration_seconds`
+- `field_service_dependency_health_status{component="database"}` dropping to `0`
+- `field_service_dependency_health_status{component="storage"}` dropping to `0`
+
+Log aggregation guidance:
+
+- ship stdout logs to your central log platform such as ELK, OpenSearch, Loki, or Cloud logging
+- index `service`, `environment`, `request_id`, `event`, `path`, and `status_code`
+- use `request_id` to correlate API failures with application and proxy logs
+
 ## Client Handoff
 
 Frontend and mobile teams should use [CLIENT_AUTH_SESSION_GUIDE.md](CLIENT_AUTH_SESSION_GUIDE.md) as the current source of truth for:
@@ -240,6 +284,7 @@ The API emits structured JSON request logs and includes an `X-Request-ID` respon
 
 Relevant settings:
 
+- `SERVICE_NAME`
 - `LOG_LEVEL`
 - `DISPLAY_TIMEZONE`
 - `DATABASE_URL_FILE`
@@ -248,6 +293,8 @@ Relevant settings:
 - `AUTH_LOGIN_RATE_LIMIT_WINDOW_SECONDS`
 - `MINIO_ACCESS_KEY_FILE`
 - `MINIO_SECRET_KEY_FILE`
+- `METRICS_ENABLED`
+- `METRICS_AUTH_TOKEN`
 - `TECHNICIAN_LOCATION_RATE_LIMIT_COUNT`
 - `TECHNICIAN_LOCATION_RATE_LIMIT_WINDOW_SECONDS`
 - `TECHNICIAN_PRESENCE_RATE_LIMIT_COUNT`

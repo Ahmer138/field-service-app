@@ -9,14 +9,16 @@ from sqlalchemy.pool import StaticPool
 import app.models  # noqa: F401
 from app.db import Base, get_db
 from app.main import app
-from app.services import rate_limiter
+from app.services import observability_registry, rate_limiter
 
 
 @pytest.fixture(autouse=True)
 def reset_rate_limiter_state():
     rate_limiter.reset()
+    observability_registry.reset()
     yield
     rate_limiter.reset()
+    observability_registry.reset()
 
 
 @pytest.fixture()

@@ -173,6 +173,8 @@ def test_request_logging_adds_request_id_header_and_structured_log(client, caplo
     assert payload["path"] == "/health"
     assert payload["status_code"] == 200
     assert payload["request_id"] == response.headers["X-Request-ID"]
+    assert payload["service"] == settings.SERVICE_NAME
+    assert payload["environment"] == settings.APP_ENV
     assert "duration_ms" in payload
 
 
@@ -1618,6 +1620,77 @@ def test_storage_health_endpoint_reports_unavailable(client, monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {"storage": "unavailable"}
+
+
+def test_metrics_endpoint_exposes_request_and_dependency_metrics(client, monkeypatch):
+    monkeypatch.setattr(storage_service, "is_available", lambda: True)
+
+    health_response = client.get("/health")
+    assert health_response.status_code == 200
+
+    storage_response = client.get("/health/storage")
+    assert storage_response.status_code == 200
+
+    metrics_response = client.get("/metrics")
+    assert metrics_response.status_code == 200
+    assert metrics_response.headers["content-type"].startswith("text/plain; version=0.0.4")
+
+    body = metrics_response.text
+    assert 'field_service_http_requests_total{method="GET",path="/health",status_code="200"} 1' in body
+    assert 'field_service_http_requests_total{method="GET",path="/health/storage",status_code="200"} 1' in body
+    assert 'field_service_dependency_health_status{component="storage"} 1' in body
+    assert 'field_service_http_request_duration_seconds_count{method="GET",path="/health"} 1' in body
+
+
+def test_metrics_endpoint_requires_token_when_configured(client, monkeypatch):
+    monkeypatch.setattr(settings, "METRICS_AUTH_TOKEN", "metrics-secret")
+
+    unauthorized_response = client.get("/metrics")
+    assert unauthorized_response.status_code == 401
+    assert unauthorized_response.json()["detail"] == "Invalid metrics credentials"
+
+    authorized_response = client.get(
+        "/metrics",
+        headers={"Authorization": "Bearer metrics-secret"},
+    )
+    assert authorized_response.status_code == 200
+
+
+def test_metrics_endpoint_can_be_disabled(client, monkeypatch):
+    monkeypatch.setattr(settings, "METRICS_ENABLED", False)
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Metrics endpoint is disabled"
+
+
+def test_metrics_endpoint_tracks_rate_limited_requests(client, session_factory, monkeypatch):
+    create_user(
+        session_factory,
+        email="metrics-rate-limit@example.com",
+        password="secret123",
+        role=UserRole.MANAGER,
+        full_name="Metrics Rate Limit",
+    )
+    monkeypatch.setattr(settings, "AUTH_LOGIN_RATE_LIMIT_COUNT", 1)
+    monkeypatch.setattr(settings, "AUTH_LOGIN_RATE_LIMIT_WINDOW_SECONDS", 60)
+
+    first_response = client.post(
+        "/auth/login",
+        data={"username": "metrics-rate-limit@example.com", "password": "secret123"},
+    )
+    assert first_response.status_code == 200
+
+    limited_response = client.post(
+        "/auth/login",
+        data={"username": "metrics-rate-limit@example.com", "password": "secret123"},
+    )
+    assert limited_response.status_code == 429
+
+    metrics_response = client.get("/metrics")
+    assert metrics_response.status_code == 200
+    assert 'field_service_rate_limited_requests_total{path="/auth/login"} 1' in metrics_response.text
 
 
 def test_job_update_photo_can_be_deleted(client, session_factory, monkeypatch):

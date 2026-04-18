@@ -9,14 +9,20 @@ from typing import Any
 
 _request_id_context: ContextVar[str | None] = ContextVar("request_id", default=None)
 _logging_configured = False
+_service_name = "app"
+_environment = "development"
 
 
-def configure_logging(level_name: str) -> None:
+def configure_logging(level_name: str, *, service_name: str, environment: str) -> None:
     global _logging_configured
+    global _service_name
+    global _environment
 
     level = getattr(logging, level_name.upper(), logging.INFO)
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
+    _service_name = service_name
+    _environment = environment
 
     if _logging_configured:
         return
@@ -55,6 +61,8 @@ def log_event(logger: logging.Logger, level: int, event: str, **fields: Any) -> 
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "level": logging.getLevelName(level).lower(),
         "logger": logger.name,
+        "service": _service_name,
+        "environment": _environment,
         "event": event,
     }
 

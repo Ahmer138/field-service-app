@@ -52,7 +52,10 @@ class Settings(BaseSettings):
     PHOTO_RETENTION_DAYS: int = 180
     DISPLAY_TIMEZONE: str = "Asia/Dubai"
     APP_ENV: str = "development"
+    SERVICE_NAME: str = "field-service-api"
     LOG_LEVEL: str = "INFO"
+    METRICS_ENABLED: bool = True
+    METRICS_AUTH_TOKEN: str | None = None
     CORS_ALLOWED_ORIGINS: str = (
         "http://localhost:3000,"
         "http://127.0.0.1:3000,"
@@ -124,6 +127,8 @@ class Settings(BaseSettings):
             raise RuntimeError("PHOTO_RETENTION_DAYS must be greater than 0")
         if not self.cors_allowed_origins:
             raise RuntimeError("CORS_ALLOWED_ORIGINS must include at least one origin")
+        if not self.SERVICE_NAME.strip():
+            raise RuntimeError("SERVICE_NAME must not be empty")
         try:
             ZoneInfo(self.DISPLAY_TIMEZONE)
         except ZoneInfoNotFoundError as exc:

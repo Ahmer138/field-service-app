@@ -6,7 +6,7 @@ from uuid import uuid4
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -26,10 +26,14 @@ from app.core.logging import (
 from app.db import get_db
 from app.schemas.error import ErrorInfo
 from app.schemas.error import ErrorResponse
-from app.services import storage_service
+from app.services import observability_registry, storage_service
 
 settings.validate_runtime()
-configure_logging(settings.LOG_LEVEL)
+configure_logging(
+    settings.LOG_LEVEL,
+    service_name=settings.SERVICE_NAME,
+    environment=settings.APP_ENV,
+)
 request_logger = logging.getLogger("app.request")
 error_logger = logging.getLogger("app.error")
 
@@ -110,6 +114,9 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         message = "Request failed"
         details = [{"detail": exc.detail}]
 
+    if exc.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
+        observability_registry.record_rate_limited_request(path=request.url.path)
+
     return JSONResponse(
         status_code=exc.status_code,
         content=_error_payload(
@@ -145,6 +152,10 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
+    observability_registry.record_unhandled_exception(
+        path=request.url.path,
+        error_type=type(exc).__name__,
+    )
     log_event(
         error_logger,
         logging.ERROR,
@@ -174,7 +185,14 @@ async def log_requests(request: Request, call_next):
     try:
         response = await call_next(request)
     except Exception:
-        duration_ms = round((perf_counter() - start) * 1000, 2)
+        duration_seconds = perf_counter() - start
+        duration_ms = round(duration_seconds * 1000, 2)
+        observability_registry.record_request(
+            method=request.method,
+            path=request.url.path,
+            status_code=500,
+            duration_seconds=duration_seconds,
+        )
         log_event(
             request_logger,
             logging.ERROR,
@@ -190,8 +208,15 @@ async def log_requests(request: Request, call_next):
         reset_request_id(context_token)
         raise
 
-    duration_ms = round((perf_counter() - start) * 1000, 2)
+    duration_seconds = perf_counter() - start
+    duration_ms = round(duration_seconds * 1000, 2)
     response.headers["X-Request-ID"] = request_id
+    observability_registry.record_request(
+        method=request.method,
+        path=request.url.path,
+        status_code=response.status_code,
+        duration_seconds=duration_seconds,
+    )
     log_event(
         request_logger,
         logging.INFO,
@@ -224,9 +249,32 @@ def health_db(db: Session = Depends(get_db)):
     - If the query succeeds, Postgres is reachable and working
     """
     db.execute(text("SELECT 1"))
+    observability_registry.set_dependency_health(component="database", is_healthy=True)
     return {"db": "ok"}
 
 
 @app.get("/health/storage")
 def health_storage():
-    return {"storage": "ok" if storage_service.is_available() else "unavailable"}
+    is_healthy = storage_service.is_available()
+    observability_registry.set_dependency_health(component="storage", is_healthy=is_healthy)
+    return {"storage": "ok" if is_healthy else "unavailable"}
+
+
+@app.get("/metrics", include_in_schema=False)
+def metrics(request: Request):
+    if not settings.METRICS_ENABLED:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Metrics endpoint is disabled")
+
+    if settings.METRICS_AUTH_TOKEN:
+        authorization = request.headers.get("Authorization")
+        expected = f"Bearer {settings.METRICS_AUTH_TOKEN}"
+        if authorization != expected:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid metrics credentials",
+            )
+
+    return PlainTextResponse(
+        observability_registry.render_prometheus(),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )

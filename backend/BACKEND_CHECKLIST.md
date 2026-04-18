@@ -38,6 +38,6 @@ This file tracks what is complete and what remains for the Field Service App bac
 
 - [x] refresh-token or token revocation strategy for mobile sessions
 - [x] secrets management outside `.env`
-- [ ] monitoring, alerting, and log aggregation
+- [x] monitoring, alerting, and log aggregation
 - [ ] backup and recovery posture for PostgreSQL and object storage
 - [ ] HTTPS/reverse proxy and deployment hardening
