@@ -149,3 +149,12 @@ export interface JobPatch {
   status?: JobStatus;
   priority?: JobPriority;
 }
+
+export interface UserCreate {
+  email: string;
+  password: string;
+  role: UserRole;
+  technician_code?: string | null;
+  full_name: string;
+  is_active?: boolean;
+}

@@ -12,6 +12,7 @@ import type {
   TechnicianLocation,
   TechnicianPresence,
   User,
+  UserCreate,
 } from '../types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') || 'http://127.0.0.1:8000';
@@ -140,5 +141,8 @@ export const api = {
   },
   updateJob(token: string, jobId: number, payload: JobPatch) {
     return request<Job>(`/jobs/${jobId}`, { method: 'PATCH', token, body: payload });
+  },
+  createUser(token: string, payload: UserCreate) {
+    return request<User>('/users', { method: 'POST', token, body: payload });
   },
 };

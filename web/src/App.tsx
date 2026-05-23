@@ -18,6 +18,7 @@ import type {
   TechnicianLocation,
   TechnicianPresence,
   User,
+  UserCreate,
   UserRole,
 } from './types';
 
@@ -80,6 +81,16 @@ function formatLoginError(error: unknown) {
   }
 
   return 'Unable to sign in right now. Please check your details and try again.';
+}
+
+function timeAgo(value: string | null | undefined): string {
+  if (!value) return 'never';
+  const minutes = Math.floor((Date.now() - new Date(value).getTime()) / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
 }
 
 function toneFor(value: string) {
@@ -160,6 +171,10 @@ export default function App() {
   >('');
   const [showCreateJob, setShowCreateJob] = useState(false);
   const [createJobError, setCreateJobError] = useState<string | null>(null);
+
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [createUserError, setCreateUserError] = useState<string | null>(null);
+  const [createUserRole, setCreateUserRole] = useState<UserRole>('technician');
 
   const [technicianDirectory, setTechnicianDirectory] = useState<User[]>([]);
 
@@ -749,6 +764,40 @@ export default function App() {
     }
   }
 
+  async function handleCreateUser(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token) return;
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const role = data.get('role') as UserRole;
+    const payload: UserCreate = {
+      full_name: data.get('full_name') as string,
+      email: data.get('email') as string,
+      password: data.get('password') as string,
+      role,
+      technician_code: role === 'technician' ? (data.get('technician_code') as string) || undefined : undefined,
+      is_active: true,
+    };
+    setBusy('create-user');
+    setCreateUserError(null);
+    try {
+      const created = await guarded(() => api.createUser(token, payload), resetSession);
+      setUsers((prev) => [created, ...prev]);
+      setUsersTotal((prev) => prev + 1);
+      if (created.role === 'technician' && created.is_active) {
+        setTechnicianDirectory((prev) => [...prev, created]);
+      }
+      setFlash(`User ${created.full_name} created.`);
+      form.reset();
+      setCreateUserRole('technician');
+      setShowCreateUser(false);
+    } catch (error) {
+      setCreateUserError(formatApiError(error));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function handleUpdateJobStatus(newStatus: JobStatus) {
     if (!token || selectedJobId == null) return;
     setBusy(`status-${newStatus}`);
@@ -967,19 +1016,27 @@ export default function App() {
 
             <article className="panel spotlight-panel">
               <div className="spotlight-head">
-                <p className="sidebar-label">Ideas for you</p>
-                <span className="request-chip">Shell phase</span>
+                <p className="sidebar-label">Dispatch status</p>
+                <span className={`request-chip${onlineTechnicians > 0 ? ' chip-live' : ''}`}>
+                  {onlineTechnicians > 0 ? 'Live' : 'No signal'}
+                </span>
               </div>
-              <h3>Approve the dashboard foundation before we restyle the detail screens.</h3>
+              <h3>
+                {onlineTechnicians > 0
+                  ? `${onlineTechnicians} technician${onlineTechnicians !== 1 ? 's' : ''} online now`
+                  : 'No technicians online right now'}
+              </h3>
               <p className="section-copy">
-                Once you confirm this direction, I will move to the next slice and redesign jobs, monitoring, and users with the same visual language.
+                {activeTechnicians.length} active in roster
+                {urgentJobs > 0 ? ` · ${urgentJobs} urgent job${urgentJobs !== 1 ? 's' : ''}` : ''}
+                {staleLocations > 0 ? ` · ${staleLocations} stale GPS ping${staleLocations !== 1 ? 's' : ''}` : ' · all GPS fresh'}
               </p>
               <button
                 type="button"
                 className="ghost-button"
-                onClick={() => setActiveTab('users')}
+                onClick={() => setActiveTab('presence')}
               >
-                Inspect roster
+                View presence
               </button>
             </article>
 
@@ -1120,12 +1177,18 @@ export default function App() {
               <div>
                 <h2>Users</h2>
                 <p className="section-copy">
-                  Paginated manager endpoint with role, active-state, and free-text
-                  filters.
+                  {usersTotal} user{usersTotal !== 1 ? 's' : ''} — manage accounts, roles, and technician codes.
                 </p>
               </div>
-              <button type="button" onClick={() => setUsersOffset(0)}>
-                First page
+              <button
+                type="button"
+                className={showCreateUser ? 'ghost-button' : 'primary-button'}
+                onClick={() => {
+                  setShowCreateUser((prev) => !prev);
+                  setCreateUserError(null);
+                }}
+              >
+                {showCreateUser ? 'Cancel' : 'New user'}
               </button>
             </div>
             <div className="toolbar multi-toolbar">
@@ -1174,26 +1237,20 @@ export default function App() {
               {!usersLoading &&
                 !usersError &&
                 users.map((user) => (
-                  <div key={user.id} className="detail-card">
-                    <div className="split-line">
-                      <div>
-                        <strong>{user.full_name}</strong>
-                        <p>{user.email}</p>
-                      </div>
-                      <div className="row-meta">
-                        <span
-                          className={`tone-chip ${toneFor(
-                            user.is_active ? 'active' : 'inactive',
-                          )}`}
-                        >
-                          {user.is_active ? 'active' : 'inactive'}
-                        </span>
-                        <span className="request-chip">{user.role}</span>
-                      </div>
+                  <div key={user.id} className="list-row">
+                    <div>
+                      <strong>{user.full_name}</strong>
+                      <p>{user.email}</p>
+                      {user.technician_code ? (
+                        <small>{user.technician_code}</small>
+                      ) : null}
                     </div>
-                    <small>
-                      Technician code: {user.technician_code || 'Not assigned'}
-                    </small>
+                    <div className="row-meta row-meta-col">
+                      <span className={`tone-chip ${toneFor(user.is_active ? 'active' : 'inactive')}`}>
+                        {user.is_active ? 'active' : 'inactive'}
+                      </span>
+                      <span className="request-chip">{user.role}</span>
+                    </div>
                   </div>
                 ))}
             </div>
@@ -1205,24 +1262,78 @@ export default function App() {
           </article>
 
           <article className="panel detail-panel">
-            <h2>Technician roster</h2>
-            <p className="section-copy">
-              Assignment options are fetched from the dedicated technician slice, not
-              only the current `/users` page.
-            </p>
-            {activeTechnicians.length === 0 ? (
-              <p className="empty-state">No active technicians available.</p>
-            ) : null}
-            {activeTechnicians.map((technician) => (
-              <div key={technician.id} className="detail-card">
-                <strong>{technician.full_name}</strong>
-                <p>{technician.email}</p>
-                <small>
-                  {technician.technician_code || 'No technician code'} - Created{' '}
-                  {formatDubaiTime(technician.created_at)}
-                </small>
-              </div>
-            ))}
+            {showCreateUser ? (
+              <>
+                <h2>New user</h2>
+                <form className="create-job-form" onSubmit={handleCreateUser}>
+                  <div className="form-row">
+                    <label className="field-label">
+                      Full name <span className="required-mark">*</span>
+                      <input name="full_name" type="text" placeholder="e.g. Ahmed Al Mansoori" required />
+                    </label>
+                    <label className="field-label">
+                      Email <span className="required-mark">*</span>
+                      <input name="email" type="email" placeholder="user@example.com" required />
+                    </label>
+                  </div>
+                  <div className="form-row">
+                    <label className="field-label">
+                      Password <span className="required-mark">*</span>
+                      <input name="password" type="password" placeholder="Minimum 8 characters" required />
+                    </label>
+                    <label className="field-label">
+                      Role <span className="required-mark">*</span>
+                      <select
+                        name="role"
+                        value={createUserRole}
+                        onChange={(e) => setCreateUserRole(e.target.value as UserRole)}
+                        required
+                      >
+                        <option value="technician">Technician</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </label>
+                  </div>
+                  {createUserRole === 'technician' ? (
+                    <label className="field-label">
+                      Technician code <span className="required-mark">*</span>
+                      <input name="technician_code" type="text" placeholder="e.g. DXB-002" required />
+                    </label>
+                  ) : null}
+                  {createUserError ? (
+                    <p className="error-text">{createUserError}</p>
+                  ) : null}
+                  <div className="form-actions">
+                    <button type="submit" className="primary-button" disabled={busy === 'create-user'}>
+                      {busy === 'create-user' ? 'Creating...' : 'Create user'}
+                    </button>
+                    <button type="button" className="ghost-button" onClick={() => setShowCreateUser(false)}>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <>
+                <h2>Technician roster</h2>
+                <p className="section-copy">
+                  Active technicians available for job assignment.
+                </p>
+                {activeTechnicians.length === 0 ? (
+                  <p className="empty-state">No active technicians available.</p>
+                ) : null}
+                {activeTechnicians.map((technician) => (
+                  <div key={technician.id} className="detail-card">
+                    <strong>{technician.full_name}</strong>
+                    <p>{technician.email}</p>
+                    <small>
+                      {technician.technician_code || 'No code'} · Created {formatDubaiTime(technician.created_at)}
+                    </small>
+                  </div>
+                ))}
+              </>
+            )}
           </article>
         </section>
       ) : null}
@@ -1620,7 +1731,8 @@ export default function App() {
               <div>
                 <h2>Latest technician locations</h2>
                 <p className="section-copy">
-                  Auto-refreshes every 30 seconds while this view is active.
+                  Auto-refreshes every 30 s · {locationsTotal} record{locationsTotal !== 1 ? 's' : ''}
+                  {staleLocations > 0 ? ` · ${staleLocations} stale` : ' · all fresh'}
                 </p>
               </div>
               <TogglePill
@@ -1669,23 +1781,26 @@ export default function App() {
                       setSelectedLocationTechnicianId(location.technician_id)
                     }
                   >
-                    <div>
+                    <div className="job-row-body">
                       <strong>{location.technician_name}</strong>
-                      <p>
+                      <p className="loc-coords">
                         {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
                       </p>
+                      <small className="job-schedule-line">{timeAgo(location.recorded_at)}</small>
                     </div>
-                    <div className="row-meta">
-                      <span
-                        className={`tone-chip ${toneFor(
-                          location.is_stale ? 'stale' : 'fresh',
-                        )}`}
-                      >
+                    <div className="row-meta row-meta-col">
+                      <span className={`tone-chip ${toneFor(location.is_stale ? 'stale' : 'fresh')}`}>
                         {location.is_stale ? 'stale' : 'fresh'}
                       </span>
-                      <span className="request-chip">
-                        {formatDubaiTime(location.recorded_at)}
-                      </span>
+                      <a
+                        className="loc-map-link"
+                        href={`https://maps.google.com/?q=${location.latitude},${location.longitude}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        map ↗
+                      </a>
                     </div>
                   </button>
                 ))}
@@ -1698,7 +1813,7 @@ export default function App() {
           </article>
 
           <article className="panel detail-panel">
-            <h2>Recent history</h2>
+            <h2>Location history</h2>
             {locationHistoryLoading ? (
               <p className="empty-state">Loading location history...</p>
             ) : null}
@@ -1709,7 +1824,7 @@ export default function App() {
             !locationHistoryError &&
             selectedLocationTechnicianId == null ? (
               <p className="empty-state">
-                Pick a technician to load recent location history.
+                Select a technician to view recent GPS history.
               </p>
             ) : null}
             {!locationHistoryLoading &&
@@ -1722,11 +1837,21 @@ export default function App() {
               !locationHistoryError &&
               locationHistory.map((entry) => (
                 <div key={entry.id} className="detail-card">
-                  <strong>
-                    {entry.latitude.toFixed(5)}, {entry.longitude.toFixed(5)}
-                  </strong>
-                  <p>Accuracy: {entry.accuracy_meters ?? 'n/a'} meters</p>
-                  <small>{formatDubaiTime(entry.recorded_at)}</small>
+                  <div className="split-line">
+                    <span className="loc-coords">
+                      {entry.latitude.toFixed(5)}, {entry.longitude.toFixed(5)}
+                    </span>
+                    <a
+                      className="loc-map-link"
+                      href={`https://maps.google.com/?q=${entry.latitude},${entry.longitude}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      map ↗
+                    </a>
+                  </div>
+                  <p>Accuracy: {entry.accuracy_meters != null ? `${entry.accuracy_meters} m` : 'n/a'}</p>
+                  <small>{formatDubaiTime(entry.recorded_at)} · {timeAgo(entry.recorded_at)}</small>
                 </div>
               ))}
           </article>
@@ -1740,7 +1865,7 @@ export default function App() {
               <div>
                 <h2>Technician presence</h2>
                 <p className="section-copy">
-                  Auto-refreshes every 30 seconds while this view is active.
+                  Auto-refreshes every 30 s · {onlineTechnicians} online now
                 </p>
               </div>
               <TogglePill
@@ -1787,20 +1912,22 @@ export default function App() {
                       setSelectedPresenceTechnicianId(entry.technician_id)
                     }
                   >
-                    <div>
-                      <strong>{entry.technician_name}</strong>
-                      <p>Session started {formatDubaiTime(entry.session_started_at)}</p>
+                    <div className="job-row-body">
+                      <div className="presence-name-row">
+                        <span className={`presence-dot ${entry.is_online ? 'dot-online' : 'dot-offline'}`} />
+                        <strong>{entry.technician_name}</strong>
+                      </div>
+                      <p>Last seen {timeAgo(entry.last_seen_at)}</p>
+                      <small className="job-schedule-line">
+                        Session {formatDubaiTime(entry.session_started_at)}
+                      </small>
                     </div>
-                    <div className="row-meta">
-                      <span
-                        className={`tone-chip ${toneFor(
-                          entry.is_online ? 'online' : 'offline',
-                        )}`}
-                      >
+                    <div className="row-meta row-meta-col">
+                      <span className={`tone-chip ${toneFor(entry.is_online ? 'online' : 'offline')}`}>
                         {entry.is_online ? 'online' : 'offline'}
                       </span>
                       <span className="request-chip">
-                        {formatDubaiTime(entry.last_seen_at)}
+                        {entry.is_logged_in ? 'logged in' : 'logged out'}
                       </span>
                     </div>
                   </button>
@@ -1825,21 +1952,20 @@ export default function App() {
             !presenceDetailError &&
             !selectedPresence ? (
               <p className="empty-state">
-                Choose a technician to inspect the current presence record.
+                Select a technician to inspect their current presence record.
               </p>
             ) : null}
             {!presenceDetailLoading && !presenceDetailError && selectedPresence ? (
               <>
                 <div className="detail-card">
-                  <div className="split-line">
-                    <strong>{selectedPresence.technician_name}</strong>
-                    <span
-                      className={`tone-chip ${toneFor(
-                        selectedPresence.is_online ? 'online' : 'offline',
-                      )}`}
-                    >
-                      {selectedPresence.is_online ? 'online' : 'offline'}
-                    </span>
+                  <div className="presence-detail-header">
+                    <span className={`presence-dot-large ${selectedPresence.is_online ? 'dot-online' : 'dot-offline'}`} />
+                    <div>
+                      <strong>{selectedPresence.technician_name}</strong>
+                      <p className={selectedPresence.is_online ? 'status-online' : 'status-offline'}>
+                        {selectedPresence.is_online ? 'Online' : 'Offline'} · last seen {timeAgo(selectedPresence.last_seen_at)}
+                      </p>
+                    </div>
                   </div>
                   <p>
                     {selectedPresence.is_logged_in
@@ -1852,17 +1978,25 @@ export default function App() {
                 </div>
 
                 <div className="detail-card">
-                  <strong>Latest linked location</strong>
+                  <p className="info-label">Latest location</p>
                   {selectedPresence.latest_location ? (
                     <>
-                      <p>
-                        {selectedPresence.latest_location.latitude.toFixed(5)},{' '}
-                        {selectedPresence.latest_location.longitude.toFixed(5)}
-                      </p>
+                      <div className="split-line">
+                        <span className="loc-coords">
+                          {selectedPresence.latest_location.latitude.toFixed(5)},{' '}
+                          {selectedPresence.latest_location.longitude.toFixed(5)}
+                        </span>
+                        <a
+                          className="loc-map-link"
+                          href={`https://maps.google.com/?q=${selectedPresence.latest_location.latitude},${selectedPresence.latest_location.longitude}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          map ↗
+                        </a>
+                      </div>
                       <small>
-                        {formatDubaiTime(
-                          selectedPresence.latest_location.recorded_at,
-                        )}
+                        {formatDubaiTime(selectedPresence.latest_location.recorded_at)} · {timeAgo(selectedPresence.latest_location.recorded_at)}
                       </small>
                     </>
                   ) : (

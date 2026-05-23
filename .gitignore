@@ -30,3 +30,6 @@ dist/
 web-build/
 coverage/
 dev-server.log
+
+# Mobile env (contains LAN IP — set from .env.example)
+mobile/.env
