@@ -1,0 +1,145 @@
+Field service App hand-off 13-04-2026
+
+Project: Field Service App backend
+Repo: c:\Users\ahmer\Desktop\field service app\backend
+GitHub: https://github.com/Ahmer138/field-service-app.git
+Branch: main
+Latest pushed commit: b95796a
+Latest commit message: add client auth and session handoff guide
+
+Current state:
+- Backend is actively developed and clean in git.
+- All work so far is committed and pushed to GitHub.
+- Latest successful test state: 43 passed.
+- Latest quality gate state: ruff passed, pyright passed, pytest passed.
+
+Product rules:
+- User is in UAE.
+- User-facing timestamps should display in Asia/Dubai (UTC+04:00).
+- GPS requirement: technicians are tracked while logged into the mobile app.
+- Managers/admins can view technician location and presence.
+
+Implemented features:
+
+- JWT auth/login
+- inactive-user blocking
+- user create/list/me
+- duplicate email + technician code protection
+- technician code validation
+- jobs create/list/get/update
+- assignments create/list/remove
+- technician access control by assignment
+- check-in/check-out with valid workflow rules
+- job events
+- job updates
+- photo upload/list/download/delete
+- image-only photo validation
+- storage health
+- technician GPS location tracking
+- latest location list/history
+- stale location logic
+- technician mobile presence heartbeat/logout
+- manager/admin presence views
+- filtering/search on users/jobs/locations/presence
+- UAE-local timestamp normalization across manager-visible responses
+- structured JSON request logging with X-Request-ID
+- startup config validation
+- configurable CORS
+- README, Dockerfile, docker-compose, .env.example, Alembic migrations
+- bounded pagination on manager list endpoints
+- paginated response envelopes with total, offset, limit, and items
+- standardized API error response shape across endpoints
+- OpenAPI summaries/descriptions/examples for key routes and schemas
+- OpenAPI examples for paginated and error response contracts
+- CI quality gates with ruff, pyright, pytest
+- migration smoke check in GitHub Actions with disposable Postgres
+- request rate limiting for abuse-sensitive endpoints
+- upload size limits and clearer storage failure handling
+- frontend-facing auth/session guidance for web and mobile clients
+
+Key manager-facing filters already implemented:
+- users:
+  - role
+  - is_active
+  - q
+- jobs:
+  - status
+  - priority
+  - technician_id
+  - created_by_id
+  - city
+  - scheduled_start_from
+  - scheduled_start_to
+  - q
+- locations latest:
+  - include_stale
+  - q
+- location history:
+  - limit
+  - recorded_from
+  - recorded_to
+- presence:
+  - include_offline
+  - q
+
+Recent completion/polish already done:
+- OpenAPI summaries/descriptions/examples added to key routes and schemas
+- startup runtime validation added for config safety
+- structured logging implemented
+- request logging implemented
+- response header includes X-Request-ID
+- configurable CORS implemented for frontend/mobile integration
+- paginated manager-facing list contracts standardized
+- standardized JSON error envelope added globally
+- CI added and expanded to lint, type-check, migrate, and test
+- rate limiting added to:
+  - POST /auth/login
+  - POST /locations/me
+  - POST /presence/me/heartbeat
+  - POST /jobs/{job_id}/updates/{update_id}/photos
+- photo upload hardening added:
+  - PHOTO_UPLOAD_MAX_BYTES config
+  - 413 for oversized uploads
+  - 503 for temporary storage failures
+- dedicated client handoff doc added:
+  - CLIENT_AUTH_SESSION_GUIDE.md
+  - linked from README
+  - checklist updated
+- retention policy for technician location history, presence data, and photos
+- refresh-token or token revocation strategy for mobile sessions
+
+Important setup/deployment files present:
+- README.md
+- CLIENT_AUTH_SESSION_GUIDE.md
+- BACKEND_CHECKLIST.md
+- .env.example
+- Dockerfile
+- docker-compose.yml
+- .dockerignore
+- requirements-dev.txt
+- .github/workflows/backend-ci.yml
+
+Current remaining backend checklist items (4 left):
+
+- secrets management outside .env
+- monitoring, alerting, and log aggregation
+- backup and recovery posture for PostgreSQL and object storage
+- HTTPS/reverse proxy and deployment hardening
+
+Recommended next implementation order:
+- retention policy for technician location history, presence data, and photos
+- refresh-token or token revocation strategy for mobile sessions
+- secrets management outside .env
+- monitoring, alerting, and log aggregation
+- backup and recovery posture for PostgreSQL and object storage
+- HTTPS/reverse proxy and deployment hardening
+
+Notes for next chat:
+- Do not redo completed work.
+- Start from the current repo state on main at commit b95796a.
+- The repo is already pushed to GitHub under Ahmer138/field-service-app.
+- Continue with the next highest-value completion task: retention policy for technician location history, presence data, and photos.
+- Keep reporting after each checklist item how many of the original 9 remain.
+
+Instruction for resume:
+Resume from the current clean backend state and continue as if the previous session never stopped. Do not redo finished work. First inspect current repo state and then continue with the highest-value remaining completion tasks.

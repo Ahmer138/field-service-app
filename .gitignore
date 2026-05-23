@@ -21,3 +21,12 @@ docker-data/
 
 # Environment variables
 .env
+
+# Node / frontend
+node_modules/
+dist/
+.expo/
+.expo-shared/
+web-build/
+coverage/
+dev-server.log

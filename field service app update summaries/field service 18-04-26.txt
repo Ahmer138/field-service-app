@@ -1,0 +1,420 @@
+Field service App hand-off 18-04-2026
+
+Project Summary
+Project: Field Service App
+
+Current backend repo:
+
+c:\Users\ahmer\Desktop\field service app\backend
+GitHub:
+
+https://github.com/Ahmer138/field-service-app.git
+Current branch:
+
+main
+Latest backend commit:
+
+bdf02c8024124a626faad42282ba600dab8c36f8
+Latest backend commit message:
+
+harden production proxy deployment
+Current backend state:
+
+Backend worktree is clean in git.
+All backend work is committed and pushed.
+Backend completion checklist is fully completed.
+Latest verification state:
+ruff passed
+pyright passed
+pytest passed
+61 passed
+Product Rules
+
+User is in UAE.
+User-facing timestamps should display in Asia/Dubai (UTC+04:00).
+GPS requirement: technicians are tracked while logged into the mobile app.
+Managers/admins can view technician location and presence.
+Backend Completion Status
+The backend is complete for the scoped product build.
+
+That means:
+
+core product functionality is implemented
+operational hardening items we planned are implemented
+deployment baseline is implemented
+backend docs/handoff are implemented
+quality gates are in place and passing
+What remains from here is no longer “unfinished backend.”
+The remaining work is product integration, release engineering, environment rollout, and launch operations.
+
+Implemented Backend Features
+
+JWT auth/login
+inactive-user blocking
+user create/list/me
+duplicate email + technician code protection
+technician code validation
+jobs create/list/get/update
+assignments create/list/remove
+technician access control by assignment
+check-in/check-out with valid workflow rules
+job events
+job updates
+photo upload/list/download/delete
+image-only photo validation
+storage health
+technician GPS location tracking
+latest location list/history
+stale location logic
+technician mobile presence heartbeat/logout
+manager/admin presence views
+filtering/search on users/jobs/locations/presence
+UAE-local timestamp normalization across manager-visible responses
+structured JSON request logging with X-Request-ID
+startup config validation
+configurable CORS
+Dockerfile, docker-compose, Alembic migrations, README, .env.example
+bounded pagination on manager list endpoints
+paginated response envelopes with total, offset, limit, items
+standardized API error response shape
+OpenAPI summaries/descriptions/examples for key routes and schemas
+OpenAPI examples for paginated and error contracts
+CI quality gates with ruff, pyright, pytest
+migration smoke check in GitHub Actions
+request rate limiting for abuse-sensitive endpoints
+upload size limits and clearer storage failure handling
+frontend/mobile auth-session handoff documentation
+retention policy for location history, presence, and photos
+mobile session revocation via POST /auth/logout
+file-based secret settings for deployment
+observability metrics endpoint and structured log aggregation guidance
+backup and restore scripts/runbook for PostgreSQL and MinIO
+HTTPS/reverse proxy and deployment hardening baseline
+Manager-Facing Filters Implemented
+Users:
+
+role
+is_active
+q
+offset
+limit
+Jobs:
+
+status
+priority
+technician_id
+created_by_id
+city
+scheduled_start_from
+scheduled_start_to
+q
+offset
+limit
+Locations latest:
+
+include_stale
+q
+offset
+limit
+Location history:
+
+offset
+limit
+recorded_from
+recorded_to
+Presence:
+
+include_offline
+q
+offset
+limit
+Important Backend Contracts
+Auth:
+
+POST /auth/login
+POST /auth/logout
+Users:
+
+POST /users
+GET /users
+GET /users/me
+Jobs:
+
+POST /jobs
+GET /jobs
+GET /jobs/{job_id}
+PATCH /jobs/{job_id}
+POST /jobs/{job_id}/assignments
+DELETE /jobs/{job_id}/assignments/{assignment_id}
+POST /jobs/{job_id}/check-in
+POST /jobs/{job_id}/check-out
+GET /jobs/{job_id}/events
+POST /jobs/{job_id}/updates
+GET /jobs/{job_id}/updates
+POST /jobs/{job_id}/updates/{update_id}/photos
+GET /jobs/{job_id}/updates/{update_id}/photos
+GET /jobs/{job_id}/updates/{update_id}/photos/{photo_id}/download
+DELETE /jobs/{job_id}/updates/{update_id}/photos/{photo_id}
+Locations:
+
+POST /locations/me
+GET /locations/technicians/{technician_id}/latest
+GET /locations/technicians/latest
+GET /locations/technicians/{technician_id}/history
+Presence:
+
+POST /presence/me/heartbeat
+POST /presence/me/logout
+GET /presence/technicians/{technician_id}
+GET /presence/technicians
+Health/ops:
+
+GET /health
+GET /health/db
+GET /health/storage
+GET /metrics
+Important Response Shapes
+Paginated list shape:
+
+{
+  "total": 125,
+  "offset": 0,
+  "limit": 50,
+  "items": []
+}
+Standard error shape:
+
+{
+  "detail": "Insufficient permissions",
+  "error": {
+    "code": "forbidden",
+    "message": "Insufficient permissions",
+    "details": []
+  },
+  "request_id": "4c4d6d8e2c3648c38fd2b0f03b649f31",
+  "path": "/users",
+  "timestamp": "2026-04-17T09:30:00Z"
+}
+Important Mobile/Web Integration Rules
+
+Use Authorization: Bearer <token>
+On app boot/session restore, call GET /users/me
+On 401, clear local session and force re-login
+Manager/admin timestamps should be treated as UAE-local display values
+Mobile technician app should:
+send heartbeat only while logged in
+send GPS only while logged in
+stop heartbeat/GPS on logout
+use POST /auth/logout for real logout
+Web/mobile should respect paginated responses and standard error envelopes
+X-Request-ID should be captured for troubleshooting if useful
+Rate-Limited Endpoints
+
+POST /auth/login
+POST /locations/me
+POST /presence/me/heartbeat
+POST /jobs/{job_id}/updates/{update_id}/photos
+Ops/Deployment Support Already Present
+
+file-based secret support:
+DATABASE_URL_FILE
+SECRET_KEY_FILE
+MINIO_ACCESS_KEY_FILE
+MINIO_SECRET_KEY_FILE
+metrics endpoint
+structured logs
+request IDs
+trusted host enforcement
+optional HTTPS redirect
+optional HSTS
+non-root container runtime
+Docker healthcheck
+Nginx/TLS deployment example
+backup/restore scripts
+backup/recovery runbook
+Important Files
+
+README.md
+CLIENT_AUTH_SESSION_GUIDE.md
+BACKEND_CHECKLIST.md
+BACKUP_RECOVERY.md
+docker-compose.yml
+docker-compose.prod.yml
+deploy/nginx/nginx.conf
+deploy/nginx/conf.d/field-service.conf
+scripts/backup-compose.ps1
+scripts/restore-compose.ps1
+What Comes Next Immediately
+The next engineering phase is:
+
+frontend web app development
+mobile app development
+API integration against the completed backend
+That is the correct next step, because backend feature completion is done.
+
+Macro Steps After Frontend + Mobile Development
+Once web and mobile are built, the project usually moves through these larger phases:
+
+1. Integration Stabilization
+This is where the frontend/mobile apps and backend are exercised together end-to-end.
+
+Typical work:
+
+fix mismatches between UI assumptions and API responses
+refine auth/session handling
+validate pagination, filtering, upload flows, GPS, presence
+confirm timestamps render correctly in UAE timezone
+improve UX around backend errors like 401, 403, 429, 503
+tune heartbeat/GPS intervals in the real client apps
+Goal:
+
+the full stack works correctly as one product
+2. Staging Deployment
+This means deploying the complete product into a real non-production environment.
+
+Typical work:
+
+deploy backend using the hardened Compose/Nginx baseline
+deploy frontend web app to a staging domain
+deploy mobile app builds to test devices or internal distribution
+wire staging secrets, database, MinIO, and TLS
+verify health endpoints, metrics, logs, and backup scripts in staging
+Goal:
+
+prove the system works in a production-like environment
+3. End-to-End QA
+This is where you validate not just code correctness but actual product behavior.
+
+Typical work:
+
+manager/admin UI testing
+technician mobile workflow testing
+real check-in/check-out testing
+photo upload/download testing
+GPS and presence testing on devices
+session expiry/logout/re-login testing
+browser and device compatibility testing
+regression testing after fixes
+Goal:
+
+confirm the product is reliable for real users
+4. UAT / Business Acceptance
+This is user acceptance testing with the actual stakeholders or operational users.
+
+Typical work:
+
+managers test dispatch/job workflows
+technicians test real field flows
+confirm terminology, screens, and data shape match business expectations
+collect final change requests
+adjust workflows if needed before launch
+Goal:
+
+ensure the software is acceptable from a business and operational perspective
+5. Release Engineering / CI-CD
+This is where delivery becomes repeatable and safe.
+
+Typical work:
+
+build frontend and backend automatically in CI
+publish Docker images
+version releases
+automate staging deploys
+optionally automate production deploys with approvals
+define rollback strategy
+ensure migrations are included safely in deployment flow
+Goal:
+
+reliable and repeatable releases
+6. Production Rollout
+This is the real launch setup.
+
+Typical work:
+
+configure production domain and DNS
+install real TLS certificates
+provision real server or cloud infrastructure
+load production secrets
+enable metrics scraping and dashboards
+set up centralized logs
+enable scheduled backups
+run a restore drill before launch
+validate firewall/network rules
+smoke test live environment
+Goal:
+
+launch safely into production
+7. Mobile Release Process
+If there is a true mobile app, there is an extra release track.
+
+Typical work:
+
+app signing
+build profiles
+internal testers
+store metadata
+TestFlight / internal Android testing
+production store release process
+versioning policy
+crash reporting setup
+Goal:
+
+get the technician app distributed properly
+8. Launch Readiness
+This is the last checkpoint before going live.
+
+Typical work:
+
+confirm support process
+confirm monitoring and alert routing
+confirm backup schedule
+confirm restore runbook
+confirm rollback plan
+confirm production access controls
+confirm logging and metrics visibility
+confirm owners for app, backend, and infra
+Goal:
+
+avoid launching a product that works technically but is not operationally supportable
+9. Post-Launch Operations
+This begins after release.
+
+Typical work:
+
+monitor metrics and logs
+respond to issues
+collect user feedback
+fix real-world bugs
+refine UX
+optimize performance
+add analytics/business reporting if needed
+plan the next roadmap
+Goal:
+
+keep the product healthy and iterate from real usage
+Simple Roadmap Order
+A practical order from here is:
+
+build the web app and mobile app
+stabilize frontend/mobile with the backend
+deploy the full stack to staging
+run QA and UAT
+automate delivery with CI/CD
+roll out to production
+operate and improve post-launch
+Answer To Your Question
+Yes, the backend is complete for the planned scope.
+
+After frontend/mobile development, the macro steps are mostly:
+
+integration stabilization
+staging rollout
+QA/UAT
+CI/CD
+production launch
+post-launch operations
+If you want, next I can give you one of these:
+
+a frontend + mobile development master plan
+a recommended repo structure for adding web and mobile into this project
+a clean prompt to start the next chat specifically for building the frontend and mobile apps

@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Field Service Mobile",
+    "slug": "field-service-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Field Service Mobile to access your location while you are logged in and working assigned jobs."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Field Service Mobile to access photos so technicians can attach job update images."
+        }
+      ],
+      "expo-secure-store"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Allow Field Service Mobile to access your location while you are logged in and working assigned jobs.",
+        "NSPhotoLibraryUsageDescription": "Allow Field Service Mobile to access photos so technicians can attach job update images."
+      }
+    },
+    "android": {
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    }
+  }
+}
