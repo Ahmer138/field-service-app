@@ -46,7 +46,7 @@ services:
       DISPLAY_TIMEZONE: Asia/Dubai
       SERVICE_NAME: field-service-api
       LOG_LEVEL: INFO
-      TRUSTED_HOSTS: localhost,127.0.0.1
+      TRUSTED_HOSTS: localhost,127.0.0.1,192.168.1.152
       FORWARDED_ALLOW_IPS: 127.0.0.1
       ENABLE_HTTPS_REDIRECT: false
       ENABLE_HSTS: false
