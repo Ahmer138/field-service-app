@@ -38,7 +38,7 @@ type DraftPhoto = {
 };
 
 const HEARTBEAT_INTERVAL_MS = 45000;
-const JOB_REFRESH_INTERVAL_MS = 30000;
+const JOB_REFRESH_INTERVAL_MS = 8000;
 
 function formatDubaiTime(value: string | null | undefined) {
   if (!value) {
@@ -174,6 +174,8 @@ export default function App() {
     }
 
     let cancelled = false;
+
+    setTrackingNote(null);
 
     async function startRealtimeWork() {
       stopRealtimeWork();

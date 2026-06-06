@@ -100,7 +100,7 @@ export const api = {
     return request<User>('/users/me', { token });
   },
   jobs(token: string) {
-    return request<PaginatedResponse<Job>>('/jobs?offset=0&limit=50', { token });
+    return request<PaginatedResponse<Job>>('/jobs?offset=0&limit=50&status=not_started&status=in_progress', { token });
   },
   job(token: string, jobId: number) {
     return request<Job>(`/jobs/${jobId}`, { token });

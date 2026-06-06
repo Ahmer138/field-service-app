@@ -158,3 +158,9 @@ export interface UserCreate {
   full_name: string;
   is_active?: boolean;
 }
+
+export interface PhotoDownload {
+  file_key: string;
+  download_url: string;
+  expires_in_seconds: number;
+}

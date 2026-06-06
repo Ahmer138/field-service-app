@@ -8,6 +8,7 @@ import type {
   JobPatch,
   JobUpdate,
   PaginatedResponse,
+  PhotoDownload,
   TechnicianLatestLocation,
   TechnicianLocation,
   TechnicianPresence,
@@ -144,5 +145,8 @@ export const api = {
   },
   createUser(token: string, payload: UserCreate) {
     return request<User>('/users', { method: 'POST', token, body: payload });
+  },
+  photoDownload(token: string, jobId: number, updateId: number, photoId: number) {
+    return request<PhotoDownload>(`/jobs/${jobId}/updates/${updateId}/photos/${photoId}/download`, { token });
   },
 };

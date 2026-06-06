@@ -27,7 +27,7 @@ type AvailabilityFilter = 'all' | 'active' | 'inactive';
 
 const TOKEN_KEY = 'field-service-web-token';
 const PAGE_SIZE = 20;
-const LIVE_REFRESH_MS = 30000;
+const LIVE_REFRESH_MS = 8000;
 
 function formatDubaiTime(value: string | null | undefined) {
   if (!value) {
@@ -240,27 +240,27 @@ export default function App() {
     dashboard: {
       eyebrow: 'Command Center',
       title: 'Dispatch dashboard',
-      copy: 'A live summary of jobs, field technicians, location freshness, and session presence.',
+      copy: 'Live summary — jobs, technicians, locations, and presence.',
     },
     users: {
       eyebrow: 'Access Control',
-      title: 'Users and technician roster',
-      copy: 'Manager-facing identity, technician availability, and account visibility controls.',
+      title: 'Users and roster',
+      copy: 'Manage team accounts, roles, and technician assignments.',
     },
     jobs: {
       eyebrow: 'Field Work',
       title: 'Jobs and assignments',
-      copy: 'Track active work orders, assignment coverage, and the latest operational activity.',
+      copy: 'Create jobs, assign technicians, track progress and activity.',
     },
     locations: {
       eyebrow: 'Tracking',
-      title: 'Live technician locations',
-      copy: 'Monitor fresh versus stale GPS updates with Dubai-time visibility across the fleet.',
+      title: 'Technician locations',
+      copy: 'Monitor live GPS positions and location freshness.',
     },
     presence: {
       eyebrow: 'Sessions',
-      title: 'Technician mobile presence',
-      copy: 'See who is logged in, online, and recently active in the technician mobile app.',
+      title: 'Technician presence',
+      copy: 'View who is online, logged in, and recently active.',
     },
   };
 
@@ -959,9 +959,6 @@ export default function App() {
               </p>
             </div>
           </div>
-          <small className="sidebar-note">
-            Live shell preview. We will restyle each operational screen after you approve this foundation.
-          </small>
         </div>
       </aside>
 
@@ -991,10 +988,10 @@ export default function App() {
         {activeTab === 'dashboard' ? (
           <section className="dashboard-grid">
             <article className="panel hero-panel">
-              <p className="eyebrow">Hello {currentUser.full_name.split(' ')[0]},</p>
-              <h2>Run dispatch, technician visibility, and live field oversight from one console.</h2>
+              <p className="eyebrow">Welcome back</p>
+              <h2>Dispatch & field control</h2>
               <p className="lede">
-                This shell sets the visual direction first: dark command center, teal signal accents, rounded cards, and compact operations density.
+                Manage jobs, track technicians, and monitor field operations in real time.
               </p>
               <div className="hero-actions">
                 <button
@@ -1701,6 +1698,32 @@ export default function App() {
                       return (
                         <div key={update.id} className="detail-card update-card">
                           <p>{update.message}</p>
+                          {update.photos.length > 0 ? (
+                            <div className="photos-grid">
+                              {update.photos.map((photo) => (
+                                <a
+                                  key={photo.id}
+                                  href="#"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    if (token && selectedJobId) {
+                                      api.photoDownload(token, selectedJobId, update.id, photo.id)
+                                        .then((dl) => {
+                                          window.open(dl.download_url, '_blank');
+                                        })
+                                        .catch((err) => {
+                                          console.error('Photo download failed:', err);
+                                        });
+                                    }
+                                  }}
+                                  className="photo-thumbnail"
+                                  title={photo.file_name || 'Photo'}
+                                >
+                                  📷 {photo.file_name ? photo.file_name.slice(0, 20) : 'Photo'}
+                                </a>
+                              ))}
+                            </div>
+                          ) : null}
                           <small>
                             {authorName} · {formatDubaiTime(update.created_at)}
                             {update.photos.length > 0

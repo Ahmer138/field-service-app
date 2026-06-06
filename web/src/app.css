@@ -926,6 +926,36 @@ small,
   color: var(--accent);
 }
 
+/* Update photos */
+.photos-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.photo-thumbnail {
+  display: inline-block;
+  padding: 6px 10px;
+  background: rgba(17, 194, 155, 0.08);
+  border: 1px solid rgba(17, 194, 155, 0.2);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.photo-thumbnail:hover {
+  background: rgba(17, 194, 155, 0.15);
+  text-decoration: underline;
+}
+
 @media (max-width: 1180px) {
   .workspace-shell,
   .auth-shell,
