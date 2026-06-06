@@ -956,6 +956,52 @@ small,
   text-decoration: underline;
 }
 
+/* Reports table */
+.content-full {
+  display: block;
+  grid-column: 2 / -1;
+}
+
+.reports-table {
+  overflow-x: auto;
+  margin-top: 16px;
+}
+
+.reports-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.reports-table thead {
+  border-bottom: 2px solid var(--line);
+}
+
+.reports-table th {
+  padding: 12px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+}
+
+.reports-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.reports-table tbody tr:hover {
+  background: rgba(17, 194, 155, 0.04);
+}
+
+.duration-cell {
+  font-weight: 600;
+  color: var(--accent);
+}
+
 @media (max-width: 1180px) {
   .workspace-shell,
   .auth-shell,

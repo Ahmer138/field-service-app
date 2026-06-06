@@ -22,7 +22,7 @@ import type {
   UserRole,
 } from './types';
 
-type TabKey = 'dashboard' | 'users' | 'jobs' | 'locations' | 'presence';
+type TabKey = 'dashboard' | 'users' | 'jobs' | 'locations' | 'presence' | 'reports';
 type AvailabilityFilter = 'all' | 'active' | 'inactive';
 
 const TOKEN_KEY = 'field-service-web-token';
@@ -211,6 +211,11 @@ export default function App() {
     null,
   );
 
+  const [completedJobs, setCompletedJobs] = useState<Job[]>([]);
+  const [completedJobsLoading, setCompletedJobsLoading] = useState(false);
+  const [completedJobsError, setCompletedJobsError] = useState<string | null>(null);
+  const [jobEventsCache, setJobEventsCache] = useState<Record<number, JobEvent[]>>({});
+
   const deferredUsersQuery = useDeferredValue(usersQuery);
   const deferredJobsQuery = useDeferredValue(jobsQuery);
   const deferredLocationsQuery = useDeferredValue(locationsQuery);
@@ -261,6 +266,11 @@ export default function App() {
       eyebrow: 'Sessions',
       title: 'Technician presence',
       copy: 'View who is online, logged in, and recently active.',
+    },
+    reports: {
+      eyebrow: 'Operations',
+      title: 'Completed jobs log',
+      copy: 'Historical record with technician time, efficiency, and task details.',
     },
   };
 
@@ -494,6 +504,42 @@ export default function App() {
     includeOfflinePresence,
     deferredPresenceQuery,
   ]);
+
+  useEffect(() => {
+    if (!token || activeTab !== 'reports') {
+      return;
+    }
+
+    setCompletedJobsLoading(true);
+    setCompletedJobsError(null);
+    guarded(
+      async () => {
+        const response = await api.jobs(token, buildQuery({ status: 'completed', offset: 0, limit: 100 }));
+        setCompletedJobs(response.items);
+
+        if (response.items.length === 0) {
+          return;
+        }
+
+        const eventsMap: Record<number, JobEvent[]> = {};
+        await Promise.all(
+          response.items.map((job) =>
+            api.events(token, job.id)
+              .then((events) => {
+                eventsMap[job.id] = events;
+              })
+              .catch(() => {
+                eventsMap[job.id] = [];
+              }),
+          ),
+        );
+        setJobEventsCache(eventsMap);
+      },
+      resetSession,
+    )
+      .catch((error) => setCompletedJobsError(formatApiError(error)))
+      .finally(() => setCompletedJobsLoading(false));
+  }, [token, activeTab]);
 
   useEffect(() => {
     if (!token || selectedJobId == null) {
@@ -928,6 +974,7 @@ export default function App() {
               ['locations', 'Locations'],
               ['presence', 'Presence'],
               ['users', 'Users'],
+              ['reports', 'Reports'],
             ] as Array<[TabKey, string]>
           ).map(([tab, label]) => (
             <button
@@ -2027,6 +2074,73 @@ export default function App() {
                   )}
                 </div>
               </>
+            ) : null}
+          </article>
+        </section>
+      ) : null}
+
+      {activeTab === 'reports' ? (
+        <section className="content-full">
+          <article className="panel">
+            <div className="section-head">
+              <div>
+                <h2>Completed jobs log</h2>
+                <p className="section-copy">
+                  {completedJobs.length} job{completedJobs.length !== 1 ? 's' : ''} completed · Historical record for operational analysis
+                </p>
+              </div>
+            </div>
+            {completedJobsLoading ? (
+              <p className="empty-state">Loading completed jobs...</p>
+            ) : null}
+            {!completedJobsLoading && completedJobsError ? (
+              <p className="error-text">{completedJobsError}</p>
+            ) : null}
+            {!completedJobsLoading && completedJobs.length === 0 ? (
+              <p className="empty-state">No completed jobs yet.</p>
+            ) : null}
+            {!completedJobsLoading && completedJobs.length > 0 ? (
+              <div className="reports-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Job</th>
+                      <th>Location</th>
+                      <th>Technician</th>
+                      <th>Completed</th>
+                      <th>Duration</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {completedJobs.map((job) => {
+                      const jobEvents = jobEventsCache[job.id] || [];
+                      const checkInEvent = jobEvents.find((e) => e.event_type === 'check_in');
+                      const checkOutEvent = jobEvents.find((e) => e.event_type === 'check_out');
+                      let durationText = 'N/A';
+                      if (checkInEvent && checkOutEvent) {
+                        const start = new Date(checkInEvent.occurred_at).getTime();
+                        const end = new Date(checkOutEvent.occurred_at).getTime();
+                        const minutes = Math.round((end - start) / 60000);
+                        const hours = Math.floor(minutes / 60);
+                        const mins = minutes % 60;
+                        durationText = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+                      }
+                      const techName = technicianDirectory.find(
+                        (t) => jobAssignments.some((a) => a.job_id === job.id && a.technician_id === t.id),
+                      )?.full_name || '—';
+                      return (
+                        <tr key={job.id}>
+                          <td><strong>{job.title}</strong></td>
+                          <td>{job.city}, {job.state}</td>
+                          <td>{techName}</td>
+                          <td>{formatDubaiTime(job.updated_at)}</td>
+                          <td className="duration-cell">{durationText}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             ) : null}
           </article>
         </section>
