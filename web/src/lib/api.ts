@@ -3,6 +3,8 @@ import type {
   AuthToken,
   Job,
   JobAssignment,
+  JobAttachment,
+  JobAttachmentDownload,
   JobCreate,
   JobEvent,
   JobPatch,
@@ -148,5 +150,24 @@ export const api = {
   },
   photoDownload(token: string, jobId: number, updateId: number, photoId: number) {
     return request<PhotoDownload>(`/jobs/${jobId}/updates/${updateId}/photos/${photoId}/download`, { token });
+  },
+  uploadAttachment(token: string, jobId: number, file: FormData) {
+    return request<JobAttachment>(`/jobs/${jobId}/attachments`, {
+      method: 'POST',
+      token,
+      body: file,
+    });
+  },
+  attachments(token: string, jobId: number) {
+    return request<JobAttachment[]>(`/jobs/${jobId}/attachments`, { token });
+  },
+  attachmentDownload(token: string, jobId: number, attachmentId: number) {
+    return request<JobAttachmentDownload>(`/jobs/${jobId}/attachments/${attachmentId}/download`, { token });
+  },
+  deleteAttachment(token: string, jobId: number, attachmentId: number) {
+    return request<void>(`/jobs/${jobId}/attachments/${attachmentId}`, {
+      method: 'DELETE',
+      token,
+    });
   },
 };

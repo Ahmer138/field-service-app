@@ -25,6 +25,7 @@ import {
 } from './src/lib/session';
 import type {
   Job,
+  JobAttachment,
   JobEvent,
   JobUpdate,
   TechnicianPresence,
@@ -86,6 +87,7 @@ export default function App() {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [jobEvents, setJobEvents] = useState<JobEvent[]>([]);
   const [jobUpdates, setJobUpdates] = useState<JobUpdate[]>([]);
+  const [jobAttachments, setJobAttachments] = useState<JobAttachment[]>([]);
   const [jobDetailLoading, setJobDetailLoading] = useState(false);
   const [jobDetailError, setJobDetailError] = useState<string | null>(null);
 
@@ -355,14 +357,16 @@ export default function App() {
     setJobDetailLoading(true);
     setJobDetailError(null);
     try {
-      const [job, events, updates] = await Promise.all([
+      const [job, events, updates, attachments] = await Promise.all([
         runGuarded(() => api.job(activeToken, jobId)),
         runGuarded(() => api.events(activeToken, jobId)),
         runGuarded(() => api.updates(activeToken, jobId)),
+        runGuarded(() => api.attachments(activeToken, jobId)),
       ]);
       setSelectedJob(job);
       setJobEvents(events);
       setJobUpdates(updates);
+      setJobAttachments(attachments);
     } catch (error) {
       setJobDetailError(formatApiError(error));
     } finally {
@@ -796,6 +800,36 @@ export default function App() {
                   </Text>
                 </View>
               ))}
+
+              {jobAttachments.length > 0 ? (
+                <>
+                  <Text style={styles.sectionTitle}>Attachments</Text>
+                  {jobAttachments.map((attachment) => (
+                    <Pressable
+                      key={`attachment-${attachment.id}`}
+                      onPress={() => {
+                        if (token) {
+                          api.attachmentDownload(token, attachment.job_id, attachment.id)
+                            .then((dl) => {
+                              Alert.alert('Download', dl.download_url);
+                            })
+                            .catch((err) => {
+                              Alert.alert('Error', `Download failed: ${formatApiError(err)}`);
+                            });
+                        }
+                      }}
+                      style={styles.timelineCard}
+                    >
+                      <Text style={styles.timelineTitle}>
+                        📎 {attachment.file_name || 'Attachment'}
+                      </Text>
+                      <Text style={styles.timelineMeta}>
+                        {attachment.content_type || 'File'} · {formatDubaiTime(attachment.created_at)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </>
+              ) : null}
             </>
           ) : null}
         </View>

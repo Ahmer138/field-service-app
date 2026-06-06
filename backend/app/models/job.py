@@ -64,3 +64,4 @@ class Job(Base):
     assignments = relationship("JobAssignment", back_populates="job")
     events = relationship("JobEvent", back_populates="job")
     updates = relationship("JobUpdate", back_populates="job")
+    attachments = relationship("JobAttachment", back_populates="job")

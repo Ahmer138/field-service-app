@@ -45,3 +45,4 @@ class User(Base):
     updates = relationship("JobUpdate", back_populates="author")
     locations = relationship("TechnicianLocation", back_populates="technician")
     presence = relationship("TechnicianPresence", back_populates="technician", uselist=False)
+    uploaded_attachments = relationship("JobAttachment", back_populates="uploaded_by")

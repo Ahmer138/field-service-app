@@ -3,6 +3,8 @@ import type {
   AuthToken,
   CreateJobUpdatePayload,
   Job,
+  JobAttachment,
+  JobAttachmentDownload,
   JobEvent,
   JobUpdate,
   JobUpdatePhoto,
@@ -152,5 +154,11 @@ export const api = {
       token,
       body: payload,
     });
+  },
+  attachments(token: string, jobId: number) {
+    return request<JobAttachment[]>(`/jobs/${jobId}/attachments`, { token });
+  },
+  attachmentDownload(token: string, jobId: number, attachmentId: number) {
+    return request<JobAttachmentDownload>(`/jobs/${jobId}/attachments/${attachmentId}/download`, { token });
   },
 };

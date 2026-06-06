@@ -9,6 +9,7 @@ import { ApiError, api } from './lib/api';
 import type {
   Job,
   JobAssignment,
+  JobAttachment,
   JobCreate,
   JobEvent,
   JobPriority,
@@ -169,6 +170,9 @@ export default function App() {
   const [assignmentTechnicianId, setAssignmentTechnicianId] = useState<
     number | ''
   >('');
+  const [jobAttachments, setJobAttachments] = useState<JobAttachment[]>([]);
+  const [attachmentUploadError, setAttachmentUploadError] = useState<string | null>(null);
+  const [attachmentUploading, setAttachmentUploading] = useState(false);
   const [showCreateJob, setShowCreateJob] = useState(false);
   const [createJobError, setCreateJobError] = useState<string | null>(null);
 
@@ -550,16 +554,18 @@ export default function App() {
     setJobDetailError(null);
     guarded(
       async () => {
-        const [job, assignments, events, updates] = await Promise.all([
+        const [job, assignments, events, updates, attachments] = await Promise.all([
           api.job(token, selectedJobId),
           api.assignments(token, selectedJobId),
           api.events(token, selectedJobId),
           api.updates(token, selectedJobId),
+          api.attachments(token, selectedJobId),
         ]);
         setSelectedJob(job);
         setJobAssignments(assignments);
         setJobEvents(events);
         setJobUpdates(updates);
+        setJobAttachments(attachments);
       },
       resetSession,
     )
@@ -855,6 +861,44 @@ export default function App() {
       setSelectedJob(updated);
       setJobs((prev) => prev.map((j) => (j.id === updated.id ? updated : j)));
       setFlash(`Job status set to ${newStatus.replace(/_/g, ' ')}.`);
+    } catch (error) {
+      setFlash(formatApiError(error));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleUploadAttachment(event: React.ChangeEvent<HTMLInputElement>) {
+    if (!token || selectedJobId == null || !event.target.files?.[0]) return;
+    setAttachmentUploading(true);
+    setAttachmentUploadError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', event.target.files[0]);
+      const attachment = await guarded(
+        () => api.uploadAttachment(token, selectedJobId, formData),
+        resetSession,
+      );
+      setJobAttachments((prev) => [attachment, ...prev]);
+      setFlash('Attachment uploaded successfully.');
+      event.target.value = '';
+    } catch (error) {
+      setAttachmentUploadError(formatApiError(error));
+    } finally {
+      setAttachmentUploading(false);
+    }
+  }
+
+  async function handleDeleteAttachment(attachmentId: number) {
+    if (!token || selectedJobId == null) return;
+    setBusy(`delete-attachment-${attachmentId}`);
+    try {
+      await guarded(
+        () => api.deleteAttachment(token, selectedJobId, attachmentId),
+        resetSession,
+      );
+      setJobAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
+      setFlash('Attachment deleted.');
     } catch (error) {
       setFlash(formatApiError(error));
     } finally {
@@ -1782,6 +1826,68 @@ export default function App() {
                     })}
                   </section>
                 ) : null}
+
+                <section>
+                  <h3>Attachments</h3>
+                  <div className="inline-form">
+                    <input
+                      type="file"
+                      onChange={handleUploadAttachment}
+                      disabled={attachmentUploading}
+                    />
+                    <button
+                      type="button"
+                      className="primary-button"
+                      disabled={attachmentUploading}
+                    >
+                      {attachmentUploading ? 'Uploading...' : 'Upload'}
+                    </button>
+                  </div>
+                  {attachmentUploadError ? (
+                    <p className="error-text">{attachmentUploadError}</p>
+                  ) : null}
+                  {jobAttachments.length === 0 ? (
+                    <p className="empty-state">No attachments yet.</p>
+                  ) : null}
+                  {jobAttachments.map((attachment) => (
+                    <div key={attachment.id} className="detail-card split-card">
+                      <div>
+                        <strong>{attachment.file_name || 'Attachment'}</strong>
+                        <p className="section-copy">{attachment.content_type || 'File'}</p>
+                        <p className="section-copy">
+                          Uploaded {formatDubaiTime(attachment.created_at)}
+                        </p>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          className="ghost-button"
+                          onClick={() => {
+                            if (token && selectedJobId) {
+                              api.attachmentDownload(token, selectedJobId, attachment.id)
+                                .then((dl) => {
+                                  window.open(dl.download_url, '_blank');
+                                })
+                                .catch((err) => {
+                                  console.error('Attachment download failed:', err);
+                                });
+                            }
+                          }}
+                        >
+                          Download
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost-button"
+                          onClick={() => handleDeleteAttachment(attachment.id)}
+                          disabled={busy === `delete-attachment-${attachment.id}`}
+                        >
+                          {busy === `delete-attachment-${attachment.id}` ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </section>
 
                 {jobEvents.length === 0 && jobUpdates.length === 0 ? (
                   <p className="empty-state">

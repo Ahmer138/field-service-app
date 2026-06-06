@@ -182,6 +182,28 @@ class JobUpdatePhotoDownload(BaseModel):
     expires_in_seconds: int
 
 
+class JobAttachmentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    job_id: int
+    file_key: str
+    file_name: str | None
+    content_type: str | None
+    uploaded_by_id: int
+    created_at: datetime
+
+    @field_serializer("created_at")
+    def serialize_datetime(self, value: datetime) -> datetime:
+        return normalize_for_display(value)
+
+
+class JobAttachmentDownload(BaseModel):
+    file_key: str
+    download_url: str
+    expires_in_seconds: int
+
+
 class JobListResponse(PaginatedResponse[JobRead]):
     model_config = ConfigDict(
         json_schema_extra={

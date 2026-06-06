@@ -11,7 +11,7 @@ from .openapi import JOBS_ERROR_RESPONSES
 from .rate_limit import enforce_rate_limit
 from ..core.config import settings
 from ..db import get_db
-from ..models import Job, JobAssignment, JobEvent, JobUpdate as JobUpdateModel, JobUpdatePhoto, User
+from ..models import Job, JobAssignment, JobAttachment, JobEvent, JobUpdate as JobUpdateModel, JobUpdatePhoto, User
 from ..models.job import JobPriority, JobStatus
 from ..models.job_event import JobEventType
 from ..models.user import UserRole
@@ -19,6 +19,8 @@ from ..services import storage_service
 from app.schemas.job import (
     JobAssignRequest,
     JobAssignmentRead,
+    JobAttachmentDownload,
+    JobAttachmentRead,
     JobCreate,
     JobEventRead,
     JobListResponse,
@@ -509,4 +511,110 @@ def delete_update_photo(
 
     storage_service.delete_object(photo.file_key)
     db.delete(photo)
+    db.commit()
+
+
+@router.post(
+    "/{job_id}/attachments",
+    response_model=JobAttachmentRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def upload_attachment(
+    job_id: int,
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager_or_admin),
+):
+    job = db.get(Job, job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    enforce_rate_limit(
+        request=request,
+        scope="job_attachment_upload",
+        identifier=str(current_user.id),
+        limit=settings.PHOTO_UPLOAD_RATE_LIMIT_COUNT,
+        window_seconds=settings.PHOTO_UPLOAD_RATE_LIMIT_WINDOW_SECONDS,
+    )
+    _validate_upload_size(file)
+
+    try:
+        file_key = storage_service.upload_job_update_photo(file)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="File storage is temporarily unavailable",
+        ) from exc
+
+    attachment = JobAttachment(
+        job_id=job_id,
+        file_key=file_key,
+        file_name=file.filename,
+        content_type=file.content_type,
+        uploaded_by_id=current_user.id,
+    )
+    db.add(attachment)
+    db.commit()
+    db.refresh(attachment)
+    return attachment
+
+
+@router.get("/{job_id}/attachments", response_model=list[JobAttachmentRead])
+def list_attachments(
+    job_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _ensure_job_access(db, job_id, current_user)
+    attachments = db.scalars(
+        select(JobAttachment)
+        .where(JobAttachment.job_id == job_id)
+        .order_by(JobAttachment.created_at.desc())
+    ).all()
+    return attachments
+
+
+@router.get(
+    "/{job_id}/attachments/{attachment_id}/download",
+    response_model=JobAttachmentDownload,
+)
+def get_attachment_download(
+    job_id: int,
+    attachment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _ensure_job_access(db, job_id, current_user)
+    attachment = db.get(JobAttachment, attachment_id)
+    if not attachment or attachment.job_id != job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attachment not found")
+
+    return JobAttachmentDownload(
+        file_key=attachment.file_key,
+        download_url=storage_service.get_download_url(attachment.file_key),
+        expires_in_seconds=3600,
+    )
+
+
+@router.delete(
+    "/{job_id}/attachments/{attachment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_attachment(
+    job_id: int,
+    attachment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_manager_or_admin),
+):
+    job = db.get(Job, job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    attachment = db.get(JobAttachment, attachment_id)
+    if not attachment or attachment.job_id != job_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attachment not found")
+
+    storage_service.delete_object(attachment.file_key)
+    db.delete(attachment)
     db.commit()

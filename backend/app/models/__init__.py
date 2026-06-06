@@ -1,5 +1,6 @@
 from app.models.job import Job as Job
 from app.models.job_assignment import JobAssignment as JobAssignment
+from app.models.job_attachment import JobAttachment as JobAttachment
 from app.models.job_event import JobEvent as JobEvent
 from app.models.job_update import JobUpdate as JobUpdate
 from app.models.job_update_photo import JobUpdatePhoto as JobUpdatePhoto
@@ -10,6 +11,7 @@ from app.models.user import User as User
 __all__ = [
     "Job",
     "JobAssignment",
+    "JobAttachment",
     "JobEvent",
     "JobUpdate",
     "JobUpdatePhoto",

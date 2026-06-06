@@ -164,3 +164,19 @@ export interface PhotoDownload {
   download_url: string;
   expires_in_seconds: number;
 }
+
+export interface JobAttachment {
+  id: number;
+  job_id: number;
+  file_key: string;
+  file_name: string | null;
+  content_type: string | null;
+  uploaded_by_id: number;
+  created_at: string;
+}
+
+export interface JobAttachmentDownload {
+  file_key: string;
+  download_url: string;
+  expires_in_seconds: number;
+}
